@@ -6,6 +6,15 @@ node_modules/
 vite.err.log
 vite.out.log
 
+# Build output (regenerate with: npm run build)
+dist/
+
+# Local editor / agent config
+.claude/
+
+# Generated dev screenshots
+output/
+
 # Temp / scratch
 tmp/
 .playwright-cli/
