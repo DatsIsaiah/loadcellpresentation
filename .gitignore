@@ -1,0 +1,15 @@
+# Dependencies (re-installable via npm install)
+node_modules/
+
+# Logs
+*.log
+vite.err.log
+vite.out.log
+
+# Temp / scratch
+tmp/
+.playwright-cli/
+
+# OS files
+Thumbs.db
+.DS_Store
