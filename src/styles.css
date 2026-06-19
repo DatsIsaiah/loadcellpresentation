@@ -47,9 +47,21 @@ button {
     repeating-linear-gradient(90deg, rgba(18, 34, 53, 0.04) 0, rgba(18, 34, 53, 0.04) 1px, transparent 1px, transparent 80px);
 }
 
+.slide-frame {
+  position: relative;
+  width: var(--scaled-width);
+  height: var(--scaled-height);
+}
+
 .slide-stage {
-  width: min(calc(100vw - 56px), calc((100vh - 104px) * 16 / 9));
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--deck-width);
+  height: var(--deck-height);
   aspect-ratio: 16 / 9;
+  transform: scale(var(--deck-scale));
+  transform-origin: top left;
 }
 
 .slide {
@@ -1021,15 +1033,15 @@ img {
   height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1.32fr) minmax(0, 0.68fr);
-  gap: 18px;
+  gap: 14px;
 }
 
 .pin-table-card {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  padding: 18px 20px;
+  gap: 9px;
+  padding: 14px 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
@@ -1041,7 +1053,7 @@ img {
 }
 
 .pin-table thead th {
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-bottom: 2px solid #d3e6ef;
   color: var(--lift);
   font-size: 0.74rem;
@@ -1058,7 +1070,7 @@ img {
 
 .pin-table td,
 .pin-table tbody th {
-  padding: 9px 10px;
+  padding: 7px 10px;
   border-bottom: 1px solid #e9f2f7;
   color: var(--muted);
   font-size: 0.9rem;
@@ -1080,7 +1092,7 @@ img {
 
 .pin-foot {
   font-size: 0.84rem;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 
 .pin-foot strong {
@@ -1090,7 +1102,7 @@ img {
 .code-card {
   flex-shrink: 0;
   margin: 0;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 8px;
   background: #102234;
   border: 1px solid #21384b;
@@ -1102,15 +1114,15 @@ img {
   color: #dbe9f4;
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   font-size: 0.8rem;
-  line-height: 1.45;
+  line-height: 1.3;
   white-space: pre;
 }
 
 .data-card {
   margin-top: auto;
   display: grid;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 11px 14px;
 }
 
 .data-card h2 {
@@ -1120,11 +1132,11 @@ img {
 .log-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .log-chips span {
-  padding: 7px 11px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: #f0f7fb;
   border: 1px solid #dceaf2;
@@ -1136,15 +1148,15 @@ img {
 .wiring-notes {
   display: grid;
   grid-template-rows: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 9px;
   min-height: 0;
 }
 
 .wiring-notes article {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   align-content: center;
-  padding: 12px 16px;
+  padding: 9px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
@@ -1342,29 +1354,6 @@ img {
   font-weight: 900;
   text-align: center;
   pointer-events: none;
-}
-
-@media (max-width: 900px) {
-  h1 {
-    font-size: 2.4rem;
-  }
-
-  .title-copy h1 {
-    font-size: 4rem;
-  }
-
-  .slide-shell {
-    padding-left: 22px;
-    padding-right: 22px;
-  }
-
-  p,
-  td,
-  li,
-  .sensor-copy p,
-  .step-card p {
-    font-size: 0.78rem;
-  }
 }
 
 /* How to Build and Mount It */
@@ -1811,5 +1800,579 @@ img {
 
 .mount-detail b,
 .mount-rule strong {
+  color: var(--ink);
+}
+
+/* ---- Interactive animated assembly slide ---- */
+.assembly-caption {
+  width: 380px;
+}
+
+.assembly-fastener {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  color: var(--steel);
+}
+
+.assembly-fastener svg {
+  flex: none;
+  color: var(--lift);
+}
+
+.assembly-fastener strong {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.assembly-progress {
+  margin-top: 11px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e1eef6;
+  overflow: hidden;
+}
+
+.assembly-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--lift), #46b1ef);
+  transition: width 0.45s ease;
+}
+
+.assembly-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 14px 34px rgba(48, 86, 110, 0.18);
+  backdrop-filter: blur(3px);
+}
+
+.assembly-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0 13px;
+  border: 1px solid #b9dcec;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #154d72;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.08s ease;
+}
+
+.assembly-controls button:hover:not(:disabled) {
+  background: #eef7fc;
+}
+
+.assembly-controls button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.assembly-controls button.primary {
+  padding: 0 17px;
+  background: var(--lift);
+  border-color: var(--lift);
+  color: #ffffff;
+}
+
+.assembly-controls button.primary:hover:not(:disabled) {
+  background: #1163a0;
+}
+
+.assembly-controls button.primary span {
+  font-size: 0.86rem;
+}
+
+.assembly-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.assembly-controls button:focus-visible {
+  outline: 2px solid rgba(22, 120, 189, 0.85);
+  outline-offset: 2px;
+}
+
+/* ---- Interactive Build Guide ---- */
+.guide-shell .slide-body {
+  display: flex;
+}
+
+.guide-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  gap: 12px;
+}
+
+.guide-tabs {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.guide-tabs button {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--steel);
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.guide-tabs button.active {
+  background: var(--lift);
+  border-color: var(--lift);
+  color: #fff;
+}
+
+.guide-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+/* --- Build Steps tab --- */
+.guide-steps {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+}
+
+.guide-step-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.grail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  flex: none;
+}
+
+.grail.active {
+  border-color: var(--lift);
+  background: #eef7fc;
+}
+
+.grail span {
+  font-weight: 900;
+  color: var(--lift);
+  width: 16px;
+  text-align: center;
+}
+
+.grail em {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.guide-step-card {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 12px 4px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.gstep-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gphase {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--lift);
+  font-weight: 900;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gcount {
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 0.76rem;
+}
+
+.guide-step-card h2 {
+  font-size: 1.4rem;
+  margin: 4px 0 0;
+}
+
+.ggoal {
+  color: var(--steel);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.gchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.gchip.part {
+  background: #eef4f8;
+  color: #2c4b63;
+  border: 1px solid #d4e4ee;
+}
+
+.gchip.fast {
+  background: #fff4ec;
+  color: #9a531f;
+  border: 1px solid #f1d9c6;
+}
+
+.gactions {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.gactions li {
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.gcheck,
+.ggotcha {
+  display: flex;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  font-size: 0.83rem;
+  line-height: 1.35;
+}
+
+.gcheck {
+  background: #eaf7ef;
+  color: #1d6c3f;
+}
+
+.gcheck svg {
+  color: #2a9d5a;
+  flex: none;
+  margin-top: 1px;
+}
+
+.ggotcha {
+  background: #fdeef0;
+  color: #8f2533;
+}
+
+.ggotcha svg {
+  color: var(--drag);
+  flex: none;
+  margin-top: 1px;
+}
+
+.gnav {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.gnav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #b9dcec;
+  border-radius: 8px;
+  background: #fff;
+  color: #154d72;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gnav button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- Parts & Tools tab --- */
+.guide-parts {
+  overflow-y: auto;
+  padding-right: 10px;
+  width: 100%;
+}
+
+.goverview {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--steel);
+  margin-bottom: 14px;
+}
+
+.guide-parts h3,
+.guide-wiring h3,
+.guide-calib h3 {
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lift);
+  margin: 10px 0 8px;
+}
+
+.gbom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.gbom-item {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: #fff;
+}
+
+.gbom-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.gbom-head strong {
+  font-size: 0.88rem;
+  flex: 1;
+}
+
+.gqty {
+  font-weight: 800;
+  color: var(--lift);
+  font-size: 0.8rem;
+}
+
+.gcost {
+  font-weight: 800;
+  color: var(--steel);
+  font-size: 0.78rem;
+}
+
+.gbom-spec {
+  font-size: 0.77rem;
+  color: var(--ink);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.gbom-src {
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.gbom-note {
+  font-size: 0.74rem;
+  color: #7a5230;
+  background: #fff8f1;
+  border-radius: 6px;
+  padding: 5px 7px;
+  margin-top: 5px;
+  line-height: 1.3;
+}
+
+.gtools {
+  margin: 0;
+  padding-left: 18px;
+  columns: 2;
+  column-gap: 22px;
+}
+
+.gtools li {
+  font-size: 0.8rem;
+  line-height: 1.34;
+  margin-bottom: 4px;
+  break-inside: avoid;
+}
+
+/* --- Wiring & Code tab --- */
+.guide-wiring {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  gap: 10px;
+}
+
+.gw-toggle {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.gw-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--steel);
+  font-weight: 800;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.gw-toggle button.active {
+  background: var(--soft);
+  border-color: #9bc8e2;
+  color: var(--lift);
+}
+
+.gw-tables {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-right: 8px;
+}
+
+.gw-block {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.gw-block.notes {
+  grid-column: 1 / -1;
+}
+
+.gw-block ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+}
+
+.gw-block li {
+  font-size: 0.8rem;
+  line-height: 1.38;
+}
+
+.gcode {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px;
+  background: #0f1f2e;
+  border-radius: 10px;
+  color: #d8e6f2;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+/* --- Calibrate & Pitfalls tab --- */
+.guide-calib {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.gcal-item {
+  border-left: 3px solid var(--lift);
+  padding: 4px 0 8px 11px;
+  margin-bottom: 8px;
+}
+
+.gcal-item strong {
+  font-size: 0.86rem;
+}
+
+.gcal-item ol {
+  margin: 5px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.gcal-item li {
+  font-size: 0.77rem;
+  line-height: 1.34;
+  color: var(--steel);
+}
+
+.gpitfalls h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--drag);
+}
+
+.gpitfalls ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 7px;
+}
+
+.gpitfalls li {
+  font-size: 0.78rem;
+  line-height: 1.36;
   color: var(--ink);
 }

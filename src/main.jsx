@@ -12,8 +12,13 @@ import {
   Cable,
   CheckCircle2,
   Gauge,
+  Pause,
+  Play,
+  RotateCcw,
   Ruler,
   ShieldCheck,
+  SkipBack,
+  SkipForward,
   Timer,
   Wrench,
   XCircle,
@@ -25,6 +30,7 @@ import sparkfunTal220Img from './assets/sparkfun-tal220-10kg-bar.jpg';
 import sparkfunTas501Img from './assets/sparkfun-tas501-200kg-stype.jpg';
 import threeCellLayoutImg from './assets/three-cell-layout.png';
 import upennForceBalanceImg from './assets/upenn-force-balance-reference.png';
+import buildGuide from './buildGuide.json';
 import './styles.css';
 
 const slides = [
@@ -38,17 +44,14 @@ const slides = [
   { id: 'hidden-balance', title: 'Keep the Sensors Out of the Flow' },
   { id: 'three-cell', title: 'Three Cells Separate the Outputs' },
   { id: 'workbench', title: 'Parts Laid Out', scene: 'workbench' },
-  { id: 'assembled', title: 'Assembled Balance', scene: 'assembly' },
-  { id: 'exploded', title: 'What Connects to What', scene: 'exploded' },
-  { id: 'build', title: 'How to Build and Mount It' },
+  { id: 'assemble', title: 'The Whole Rig, Built Step by Step', scene: 'assemble' },
+  { id: 'build-guide', title: 'Build It Yourself, Step by Step' },
   { id: 'mounting', title: 'How It Mounts and Stands in the Tunnel' },
-  { id: 'connections', title: 'Every Connection, Spelled Out' },
-  { id: 'sourcing', title: 'Make It or Buy It' },
-  { id: 'wiring', title: 'Wire Each Cell Into an HX711' },
-  { id: 'pinmap', title: 'Three Channels Into the Arduino' },
-  { id: 'calibration', title: 'Calibrate Before Wind-On Data' },
   { id: 'plan', title: 'Build Plan, Time, and Cost' },
 ];
+
+const SLIDE_WIDTH = 1094;
+const SLIDE_HEIGHT = 615;
 
 const metrics = [
   ['3.0 m', 'Fox wingspan'],
@@ -203,7 +206,29 @@ const rigNotes = {
 
 function App() {
   const [index, setIndex] = useState(0);
+  const [scale, setScale] = useState(1);
   const slide = slides[index];
+
+  useEffect(() => {
+    let frame = 0;
+    const updateScale = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const availableWidth = Math.max(window.innerWidth - 56, 320);
+        const availableHeight = Math.max(window.innerHeight - 104, 240);
+        setScale(Math.min(availableWidth / SLIDE_WIDTH, availableHeight / SLIDE_HEIGHT));
+      });
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    window.visualViewport?.addEventListener('resize', updateScale);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updateScale);
+      window.visualViewport?.removeEventListener('resize', updateScale);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (event) => {
@@ -220,10 +245,20 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const deckStyle = {
+    '--deck-scale': scale,
+    '--deck-width': `${SLIDE_WIDTH}px`,
+    '--deck-height': `${SLIDE_HEIGHT}px`,
+    '--scaled-width': `${SLIDE_WIDTH * scale}px`,
+    '--scaled-height': `${SLIDE_HEIGHT * scale}px`,
+  };
+
   return (
-    <main className="deck">
-      <section className="slide-stage" aria-live="polite">
-        <SlideBody slide={slide} />
+    <main className="deck" style={deckStyle}>
+      <section className="slide-frame" aria-live="polite">
+        <section className="slide-stage">
+          <SlideBody slide={slide} />
+        </section>
       </section>
       <footer className="slide-nav">
         <button
@@ -257,7 +292,9 @@ function SlideBody({ slide }) {
   if (slide.id === 'reference') return <ReferenceSlide />;
   if (slide.id === 'hidden-balance') return <HiddenBalanceSlide />;
   if (slide.id === 'three-cell') return <ThreeCellSlide />;
-  if (slide.id === 'workbench' || slide.id === 'assembled' || slide.id === 'exploded') return <ModelSlide slide={slide} />;
+  if (slide.id === 'workbench') return <ModelSlide slide={slide} />;
+  if (slide.id === 'assemble') return <AssemblySlide />;
+  if (slide.id === 'build-guide') return <BuildGuideSlide />;
   if (slide.id === 'bridge') return <BridgeSlide />;
   if (slide.id === 'build') return <BuildSetupSlide />;
   if (slide.id === 'mounting') return <MountingSlide />;
@@ -479,6 +516,953 @@ function ModelSlide({ slide }) {
       </div>
       <div className="model-hint">Drag to rotate &middot; scroll to zoom</div>
     </article>
+  );
+}
+
+// ===========================================================================
+// Interactive animated assembly.
+// The rig builds itself part-by-part in real load-path order. Each part flies
+// from a staging offset into its final place and "snaps" in (a pulse ring), and
+// the real 4-wire bridge cables + DT/SCK jumpers draw themselves in. One single
+// continuous "scrub" value (0..9) drives the entire reveal, so nothing is ever
+// rebuilt when the step changes - we only move groups and grow wire draw-ranges
+// inside the render loop. Captions below were fact-checked against the rig's
+// engineering facts (cantilever fixed-end-down / free-end-up, bridge wire
+// colours, the HX711 pin map, the load path).
+// ===========================================================================
+
+// One caption per step. Index 0 = intro, 9 = final wiring.
+const assemblyStepCaptions = [
+  {
+    kicker: 'START HERE',
+    title: 'A Force Balance, From Scratch',
+    body: "An empty tunnel with a frame bolted to the floor. We'll build the balance - a force-measuring rig - one piece at a time. Press Play.",
+    fastener: 'Press Play, or step through with Next',
+  },
+  {
+    kicker: 'FRAME',
+    title: 'Bolt the Base Down Hard',
+    body: "The rigid 2020-aluminium frame bolts to the tunnel stand. It's the foundation of the load path, so it must not flex or rock.",
+    fastener: 'Frame bolted hard to the stand - no flex',
+  },
+  {
+    kicker: 'FRONT LIFT',
+    title: 'Front Lift Cell (TAL220 #1)',
+    body: 'Bolt the fixed end DOWN to the base (M5); the free end goes UP to the plate (M4). Spacers leave a flex gap - bolt both ends flat and it reads zero.',
+    fastener: 'Fixed end: M5 + spacer down  ·  free end: M4 + spacer up',
+  },
+  {
+    kicker: 'REAR LIFT',
+    title: 'Rear Lift Cell (TAL220 #2)',
+    body: 'A second 10 kg bar cell ~95 mm behind the front. That spacing is the moment arm (lever distance) that turns front-minus-rear into pitch.',
+    fastener: 'M5 + spacer down to base  ·  M4 + spacer up to plate',
+  },
+  {
+    kicker: 'MOVING PLATE',
+    title: 'Plate on a Drag-Axis Slide',
+    body: "The plate bolts to the two free ends through a mini linear slide: rigid vertically so all lift flows through the cells, but free to slide fore-aft so drag can reach the S-cell. Nothing else may touch it.",
+    fastener: 'M4 bolts -> carriages on a drag-axis linear guide',
+  },
+  {
+    kicker: 'DRAG CELL',
+    title: 'TAS501 S-Cell Reads Drag',
+    body: 'The S-type cell mounts horizontally, inline with the airflow, between frame and plate on rod-end (heim) bearings - so it feels only the along-wind push.',
+    fastener: 'Rod-end (heim) bearings + shoulder bolts',
+  },
+  {
+    kicker: 'STING',
+    title: 'Sting Lifts the Model Into the Air',
+    body: "A clamp block bolts to the plate's centre; the thin sting rises through a floor slot. Only the aircraft and the sting ever meet the air.",
+    fastener: 'Clamp block bolted to the plate centre',
+  },
+  {
+    kicker: 'FOX GLIDER',
+    title: 'Airframe Bolts to the Sting',
+    body: 'The FMS Fox bolts to the sting saddle. Air load enters here and flows straight down the sting into the balance below.',
+    fastener: 'Saddle bolts clamp the airframe to the sting top',
+  },
+  {
+    kicker: 'WIRING',
+    title: 'Each Cell to Its Own HX711',
+    body: "Every cell's 4 sealed bridge wires run straight to its own HX711 amp (it boosts the tiny signal). Three cells, three boards, no breadboard.",
+    fastener: 'red E+ · black E- · green A+ · white A-  to HX711',
+  },
+  {
+    kicker: 'TO ARDUINO',
+    title: 'HX711 to Arduino, Three Channels',
+    body: 'Each HX711 sends data (DT) and clock (SCK) to its own pin pair. All share 5 V and a common ground; tie RATE high for 80 SPS.',
+    fastener: 'DT/SCK: D2/D3 · D4/D5 · D6/D7  ·  shared 5V/GND',
+  },
+];
+
+const ASSEMBLY_LAST_STEP = assemblyStepCaptions.length - 1; // 9
+
+function clamp01(value) {
+  return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+// Smoothstep ease-in-out: slow start, slow finish, so each part eases into place.
+function smoothEase(p) {
+  return p * p * (3 - 2 * p);
+}
+
+function AssemblySlide() {
+  // React owns only the DISPLAY state (caption + button states). The canvas owns
+  // the animation and pushes the current step/playing back up through onState.
+  const [view, setView] = useState({ step: 0, playing: false });
+  const controllerRef = useRef(null);
+  const caption = assemblyStepCaptions[view.step];
+
+  const press = (method) => () => {
+    const controller = controllerRef.current;
+    if (controller && controller[method]) controller[method]();
+  };
+
+  const playLabel = view.playing
+    ? 'Pause'
+    : view.step === 0
+    ? 'Play'
+    : view.step === ASSEMBLY_LAST_STEP
+    ? 'Replay'
+    : 'Resume';
+
+  return (
+    <article className="slide model-slide assembly-slide">
+      <AssemblyCanvas controllerRef={controllerRef} onState={setView} />
+
+      <div className="model-caption assembly-caption">
+        <p>
+          Animated build &middot; step {view.step} / {ASSEMBLY_LAST_STEP}
+        </p>
+        <h1>{caption.title}</h1>
+        <span>{caption.body}</span>
+        <div className="assembly-fastener">
+          <Wrench size={14} />
+          <strong>{caption.fastener}</strong>
+        </div>
+        <div className="assembly-progress" aria-hidden="true">
+          <span style={{ width: `${(view.step / ASSEMBLY_LAST_STEP) * 100}%` }} />
+        </div>
+      </div>
+
+      <div className="assembly-controls">
+        <button onClick={press('prev')} disabled={view.step === 0} aria-label="Previous step">
+          <SkipBack size={18} />
+        </button>
+        <button className="primary" onClick={press('togglePlay')} aria-label={view.playing ? 'Pause' : 'Play'}>
+          {view.playing ? <Pause size={18} /> : <Play size={18} />}
+          <span>{playLabel}</span>
+        </button>
+        <button onClick={press('next')} disabled={view.step === ASSEMBLY_LAST_STEP} aria-label="Next step">
+          <SkipForward size={18} />
+        </button>
+        <button onClick={press('reset')} disabled={view.step === 0 && !view.playing} aria-label="Reset to start">
+          <RotateCcw size={16} />
+        </button>
+      </div>
+
+      <div className="model-hint">Drag to rotate &middot; scroll to zoom</div>
+    </article>
+  );
+}
+
+function AssemblyCanvas({ controllerRef, onState }) {
+  const mountRef = useRef(null);
+  // Keep the latest onState callback reachable from the long-lived render loop
+  // without re-running the build effect.
+  const onStateRef = useRef(onState);
+  onStateRef.current = onState;
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return undefined;
+
+    // --- renderer / scene / camera / lights (mirrors RigCanvas) -------------
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf7fbff);
+
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mount.appendChild(renderer.domElement);
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTexture;
+    scene.environmentIntensity = 0.5;
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xb8cad8, 1.6));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.1);
+    keyLight.position.set(4.5, 5, 3);
+    scene.add(keyLight);
+    const rim = new THREE.DirectionalLight(0x9bdcff, 1.0);
+    rim.position.set(-4, 1.8, -3);
+    scene.add(rim);
+
+    const root = new THREE.Group();
+    root.position.set(0, -0.08, 0);
+    scene.add(root);
+
+    const mats = makeMaterials('assembly');
+    const { animated, cables, labels, pulses } = buildAssemblyScene(root, mats);
+
+    // Auto-fit the camera ONCE to the fully assembled rig (every part at its
+    // 'to' position), so parts fly in from just outside the final silhouette and
+    // the framing never jumps between steps.
+    animated.forEach((part) => part.group.position.copy(part.to));
+    frameSceneToCamera(camera, controls, root);
+    // Pull in a touch tighter than the generic fit so the balance + wiring fill
+    // the frame on this teaching slide.
+    camera.position.lerp(controls.target, 0.12);
+    camera.updateProjectionMatrix();
+    controls.update();
+
+    // --- animation state machine --------------------------------------------
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const EASE_MS = 950; // time to fly a single part fully into place
+    const dwellFor = (step) => (step >= 8 ? 1150 : 850); // pause so the caption reads
+    let scrub = 0; // continuous build position, 0 .. ASSEMBLY_LAST_STEP
+    let target = 0; // the integer step we are easing toward
+    let playing = false;
+    let dwell = 0;
+    let doneLatched = false;
+    let last = performance.now();
+
+    const pushState = () => {
+      if (onStateRef.current) onStateRef.current({ step: target, playing });
+    };
+
+    // Place every part / cable / pulse for a given scrub position.
+    const applyScrub = (s) => {
+      for (const part of animated) {
+        const p = clamp01(s - (part.appearAt - 1));
+        const e = smoothEase(p);
+        part.group.position.set(
+          THREE.MathUtils.lerp(part.from.x, part.to.x, e),
+          THREE.MathUtils.lerp(part.from.y, part.to.y, e),
+          THREE.MathUtils.lerp(part.from.z, part.to.z, e)
+        );
+        // Hide a part until its own fly-in begins, so finished steps stay tidy.
+        part.group.visible = s > part.appearAt - 1 + 0.012;
+      }
+      for (const cable of cables) {
+        const p = clamp01(s - (cable.appearAt - 1));
+        const total = cable.geometry.index ? cable.geometry.index.count : 0;
+        cable.mesh.visible = p > 0.001;
+        cable.geometry.setDrawRange(0, Math.floor(total * p)); // wires "draw" in
+      }
+      for (const pulse of pulses) {
+        const p = clamp01(s - (pulse.appearAt - 1));
+        if (p > 0.62 && p < 0.999) {
+          const t = (p - 0.62) / 0.38; // 0..1 across the final seating
+          pulse.mesh.visible = true;
+          pulse.mesh.scale.setScalar(0.5 + t * 1.5);
+          pulse.material.opacity = Math.sin(t * Math.PI) * 0.85; // flash then fade
+        } else {
+          pulse.mesh.visible = false;
+        }
+      }
+      for (const label of labels) {
+        label.node.visible = s > label.appearAt - 0.5;
+      }
+    };
+
+    applyScrub(0);
+    pushState();
+
+    const renderNow = () => {
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    // If the tab is backgrounded, requestAnimationFrame is paused, so the easing
+    // loop is frozen. Snap straight to the target and repaint once so the view
+    // still reflects the current step instead of going blank/stale.
+    const settleIfHidden = () => {
+      if (document.hidden) {
+        scrub = target;
+        applyScrub(scrub);
+        renderNow();
+      }
+    };
+
+    // Imperative controller used by the React control bar.
+    controllerRef.current = {
+      next() {
+        if (target < ASSEMBLY_LAST_STEP) {
+          target += 1;
+          dwell = 0;
+          pushState();
+          settleIfHidden();
+        }
+      },
+      prev() {
+        if (target > 0) {
+          target -= 1;
+          dwell = 0;
+          pushState();
+          settleIfHidden();
+        }
+      },
+      reset() {
+        target = 0;
+        scrub = 0; // snap straight back to the start
+        playing = false;
+        dwell = 0;
+        doneLatched = false;
+        pushState();
+        settleIfHidden();
+      },
+      togglePlay() {
+        const willPlay = !playing;
+        playing = willPlay;
+        // Pressing Play after the build finished replays from the top.
+        if (willPlay && target >= ASSEMBLY_LAST_STEP) {
+          target = 0;
+          scrub = 0;
+          doneLatched = false;
+        }
+        dwell = 0;
+        pushState();
+        settleIfHidden();
+      },
+    };
+
+    // Size the canvas BEFORE the first render so the opening frame is correct
+    // and repaints immediately (it must not depend on the rAF loop, which is
+    // paused while the tab is backgrounded).
+    const resize = () => {
+      const width = mount.clientWidth || 800;
+      const height = mount.clientHeight || 600;
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(mount);
+
+    let frame = 0;
+    const animate = (now) => {
+      frame = requestAnimationFrame(animate);
+      const dt = Math.min(now - last, 60);
+      last = now;
+
+      // Ease the scrub toward the integer target.
+      const diff = target - scrub;
+      if (reduceMotion) {
+        scrub = target;
+      } else if (Math.abs(diff) > 0.0005) {
+        const move = (dt / EASE_MS) * Math.sign(diff);
+        scrub = Math.abs(move) >= Math.abs(diff) ? target : scrub + move;
+      } else {
+        scrub = target;
+      }
+
+      // When settled on a step during playback, dwell then auto-advance.
+      if (playing && scrub === target) {
+        dwell += dt;
+        if (dwell >= dwellFor(target)) {
+          dwell = 0;
+          if (target < ASSEMBLY_LAST_STEP) {
+            target += 1;
+            pushState();
+          } else if (!doneLatched) {
+            playing = false;
+            doneLatched = true;
+            pushState();
+          }
+        }
+      }
+
+      applyScrub(scrub);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate(last);
+
+    // --- cleanup (mirrors RigCanvas) ----------------------------------------
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      controls.dispose();
+      envTexture.dispose();
+      pmrem.dispose();
+      renderer.dispose();
+      scene.traverse((object) => {
+        if (object.geometry) object.geometry.dispose();
+        if (object.material) {
+          if (Array.isArray(object.material)) object.material.forEach((m) => m.dispose());
+          else object.material.dispose();
+        }
+      });
+      mount.removeChild(renderer.domElement);
+      controllerRef.current = null;
+    };
+  }, [controllerRef]);
+
+  return <div className="canvas-host" ref={mountRef} />;
+}
+
+// Builds the rig and returns the pieces the render loop animates:
+//   animated - part groups that fly in (group, to, from, appearAt)
+//   cables   - wire meshes whose drawRange grows as they connect
+//   pulses   - "snap" rings that flash as a part seats
+//   labels   - 3D callouts that pop in with their part
+function buildAssemblyScene(root, mats) {
+  const animated = [];
+  const cables = [];
+  const labels = [];
+  const pulses = [];
+  const vec = (x, y, z) => new THREE.Vector3(x, y, z);
+
+  // Register an animated part: starts at (to + fromOffset), flies to (to).
+  const addPart = (group, to, fromOffset, appearAt) => {
+    root.add(group);
+    const toVec = vec(to[0], to[1], to[2]);
+    animated.push({
+      group,
+      to: toVec,
+      from: toVec.clone().add(vec(fromOffset[0], fromOffset[1], fromOffset[2])),
+      appearAt,
+    });
+    return group;
+  };
+
+  // A pulse ring at a connection point, with its own material so its opacity can
+  // be animated independently as the part seats.
+  const addPulse = (pos, normalAxis, color, appearAt) => {
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false });
+    const mesh = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.018, 10, 28), material);
+    mesh.position.set(pos[0], pos[1], pos[2]);
+    if (normalAxis === 'y') mesh.rotation.x = -Math.PI / 2;
+    if (normalAxis === 'x') mesh.rotation.y = Math.PI / 2;
+    mesh.visible = false;
+    mesh.renderOrder = 12;
+    mesh.userData.fitIgnore = true;
+    root.add(mesh);
+    pulses.push({ mesh, material, appearAt });
+  };
+
+  // A wire whose drawRange grows from 0 -> full while its step plays.
+  const addWire = (points, material, radius, appearAt) => {
+    const mesh = addTubeWire(root, points, material, radius);
+    cables.push({ mesh, geometry: mesh.geometry, appearAt });
+  };
+
+  // A 3D callout that becomes visible with its step.
+  const addStepLabel = (text, pos, color, appearAt) => {
+    const node = new THREE.Group();
+    addLabel(node, text, pos, color);
+    root.add(node);
+    labels.push({ node, appearAt });
+  };
+
+  // ----- local hardware builders (real fasteners so nothing looks floating) --
+  // A hex-head bolt, built head-up / shank-down; `dir` re-orients it.
+  const addBolt = (parent, pos, dir, shankLen, headColor) => {
+    const g = new THREE.Group();
+    const headMat = headColor
+      ? new THREE.MeshStandardMaterial({ color: headColor, metalness: 0.8, roughness: 0.4 })
+      : mats.steel;
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.016, 6), headMat);
+    head.position.y = 0.008;
+    const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0095, shankLen, 10), mats.steel);
+    shank.position.y = -shankLen / 2;
+    head.castShadow = true;
+    shank.castShadow = true;
+    g.add(head, shank);
+    if (dir === 'up') g.rotation.x = Math.PI;
+    else if (dir === 'x') g.rotation.z = -Math.PI / 2;
+    else if (dir === '-x') g.rotation.z = Math.PI / 2;
+    else if (dir === 'z') g.rotation.x = Math.PI / 2;
+    else if (dir === '-z') g.rotation.x = -Math.PI / 2;
+    g.position.set(pos[0], pos[1], pos[2]);
+    parent.add(g);
+    return g;
+  };
+  // A short standoff/spacer column (free end of a cell -> plate).
+  const addStandoff = (parent, pos, height) =>
+    addCylinder(parent, [0.034, 0.04, height], pos, mats.aluminum, 'y');
+  // A rod-end (heim) bearing: a steel ball in an eye, used on the drag link.
+  const addRodEnd = (parent, pos) => {
+    addScaledSphere(parent, [0.035, 0.035, 0.035], pos, mats.steel);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.013, 10, 20), mats.darkMetal);
+    ring.position.set(pos[0], pos[1], pos[2]);
+    ring.rotation.x = Math.PI / 2;
+    parent.add(ring);
+  };
+
+  // ----- vertical layout (1 unit = 100 mm). The balance hangs BELOW the tunnel
+  //       floor; only the aircraft + the thin sting sit above it in the air. ---
+  const GROUND_Y = -0.82; // heavy baseplate / bench top (bolted to the room)
+  const FRAME_Y = -0.66; // balance frame rails, just above the baseplate
+  const CELL_Y = -0.46; // bar cells, horizontal
+  const CELL_TOP = CELL_Y + 0.0635;
+  const CELL_BOT = CELL_Y - 0.0635;
+  const PLATE_Y = -0.3; // moving plate, resting on the cell free ends
+  const PLATE_BOT = PLATE_Y - 0.025;
+  const FLOOR_Y = 0.12; // tunnel floor; everything below it is the balance
+  const STING_Y = 0.18; // sting group origin (clamp at plate, saddle up top)
+  const AIR_Y = 0.74; // aircraft, up in the airflow
+
+  // ===== STATIC CONTEXT (always visible, ignored by the camera auto-fit) =====
+  const stage = new THREE.Group();
+  stage.userData.fitIgnore = true;
+  root.add(stage);
+
+  // Heavy baseplate / bench the whole rig is bolted to, + corner hold-downs.
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x6b7886, roughness: 0.78, metalness: 0.15 });
+  addBox(stage, [3.3, 0.06, 1.85], [0.45, GROUND_Y, 0], baseMat);
+  [[-0.95, 0.78], [1.85, 0.78], [-0.95, -0.78], [1.85, -0.78]].forEach(([x, z]) =>
+    addBolt(stage, [x, GROUND_Y + 0.035, z], 'down', 0.05, 0x20262d)
+  );
+
+  // Wind-tunnel test section: a slotted floor on four legs, translucent glass
+  // side walls + a wire ceiling, open at the inlet/outlet for the airflow.
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0xdceefb, roughness: 0.5, metalness: 0.05, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0xbfe6ff, roughness: 0.08, metalness: 0, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
+  const TX0 = -1.15, TX1 = 1.15, TZ = 0.86, TCEIL = FLOOR_Y + 1.25;
+  const SLOT_X0 = -0.2, SLOT_X1 = 0.04, SLOT_Z0 = -0.1, SLOT_Z1 = 0.1; // sting hole
+  const floorPanel = (x0, x1, z0, z1) =>
+    addBox(stage, [x1 - x0, 0.04, z1 - z0], [(x0 + x1) / 2, FLOOR_Y, (z0 + z1) / 2], floorMat);
+  floorPanel(TX0, SLOT_X0, -TZ, TZ); // floor left of the slot
+  floorPanel(SLOT_X1, TX1, -TZ, TZ); // floor right of the slot
+  floorPanel(SLOT_X0, SLOT_X1, SLOT_Z1, TZ); // floor in front of the slot
+  floorPanel(SLOT_X0, SLOT_X1, -TZ, SLOT_Z0); // floor behind the slot
+  // glass side walls + wire ceiling outline
+  addBox(stage, [TX1 - TX0, TCEIL - FLOOR_Y, 0.02], [(TX0 + TX1) / 2, (FLOOR_Y + TCEIL) / 2, TZ], glassMat);
+  addBox(stage, [TX1 - TX0, TCEIL - FLOOR_Y, 0.02], [(TX0 + TX1) / 2, (FLOOR_Y + TCEIL) / 2, -TZ], glassMat);
+  const ceil = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(TX1 - TX0, 0.01, TZ * 2)),
+    new THREE.LineBasicMaterial({ color: 0x9bc8e2, transparent: true, opacity: 0.7 })
+  );
+  ceil.position.set((TX0 + TX1) / 2, TCEIL, 0);
+  stage.add(ceil);
+  // four legs holding the test section up off the baseplate
+  [[TX0 + 0.1, TZ - 0.1], [TX1 - 0.1, TZ - 0.1], [TX0 + 0.1, -TZ + 0.1], [TX1 - 0.1, -TZ + 0.1]].forEach(([x, z]) =>
+    addBox(stage, [0.06, FLOOR_Y - GROUND_Y, 0.06], [x, (FLOOR_Y + GROUND_Y) / 2, z], mats.darkMetal)
+  );
+  // a label on the floor slot + the airflow arrow/label (above the floor)
+  addForceArrow(stage, [-1.5, FLOOR_Y + 0.5, -0.55], [1, 0, 0], 0.7, 0x129fd2);
+  addLabel(stage, 'airflow', [-1.0, FLOOR_Y + 0.66, -0.55], '#17799d');
+  addLabel(stage, 'wind-tunnel test section', [0.55, TCEIL + 0.06, 0], '#17799d');
+  addLabel(stage, 'balance sits below the floor', [-1.18, -0.34, 0.55], '#5e7184');
+
+  // ===== ANIMATED BUILD =====================================================
+  // 1) Rigid balance frame on the baseplate: rails + 4 bolted feet + the central
+  //    pedestal the bar cells bolt down onto. Rises into place from below.
+  const frame = new THREE.Group();
+  addBox(frame, [1.74, 0.07, 0.07], [0, FRAME_Y, 0.34], mats.aluminum);
+  addBox(frame, [1.74, 0.07, 0.07], [0, FRAME_Y, -0.34], mats.aluminum);
+  addBox(frame, [0.07, 0.07, 0.68], [-0.82, FRAME_Y, 0], mats.aluminum);
+  addBox(frame, [0.07, 0.07, 0.68], [0.82, FRAME_Y, 0], mats.aluminum);
+  // four feet down to the baseplate, each bolted through
+  [[-0.82, 0.34], [0.82, 0.34], [-0.82, -0.34], [0.82, -0.34]].forEach(([x, z]) => {
+    addBox(frame, [0.1, FRAME_Y - GROUND_Y, 0.1], [x, (FRAME_Y + GROUND_Y) / 2, z], mats.darkMetal);
+    addBolt(frame, [x, FRAME_Y + 0.04, z], 'down', 0.06, 0x20262d);
+  });
+  // central pedestal: the rigid mount the two cells' FIXED ends bolt down to.
+  // Spans from the frame rail top up to the cells' underside (positive height).
+  const pedBot = FRAME_Y + 0.035; // frame rail top
+  const pedTop = CELL_BOT; // cells' underside
+  addBox(frame, [0.4, pedTop - pedBot, 0.62], [0, (pedTop + pedBot) / 2, 0], mats.darkMetal);
+  // drag-anchor post on the +X side (rod-end of the S-cell attaches here)
+  addBox(frame, [0.08, PLATE_Y - FRAME_Y + 0.12, 0.08], [1.42, (PLATE_Y + FRAME_Y) / 2 + 0.06, -0.28], mats.aluminum);
+  addPart(frame, [0, 0, 0], [0, -0.9, 0], 1);
+  addPulse([-0.82, FRAME_Y + 0.04, 0.34], 'y', 0x2a9d5a, 1);
+
+  // A mini LINEAR GUIDE between a cell's free end and the moving plate: STIFF
+  // vertically (lift transfers into the cell) but FREE to slide along X (the drag
+  // axis), so the plate can translate fore-aft to load the S-cell. Without this,
+  // a plate bolted rigidly to two vertical cantilevers could not move and drag
+  // would never reach the S-cell. Built in world coords on an UN-rotated wrapper.
+  const addComplianceGuide = (parent, x, z) => {
+    addCylinder(parent, [0.03, 0.036, 0.022], [x, CELL_TOP + 0.011, z], mats.aluminum, 'y'); // standoff off the cell
+    addRoundedBox(parent, [0.18, 0.02, 0.055], [x, CELL_TOP + 0.032, z], mats.darkMetal, 0.004); // rail, long axis = X (drag)
+    addBox(parent, [0.18, 0.006, 0.014], [x, CELL_TOP + 0.043, z], mats.steel); // bright groove = the slide axis
+    addRoundedBox(parent, [0.08, 0.03, 0.075], [x, CELL_TOP + 0.06, z], mats.aluminum, 0.006); // carriage (plate bolts here)
+  };
+  // The cell's printed LOAD-DIRECTION ARROW (it, not the hole size, sets which
+  // end is fixed). Drawn as a small green arrow, toggled in with its step.
+  const addLoadArrow = (x, z, appearAt) => {
+    const g = new THREE.Group();
+    addForceArrow(g, [x, CELL_TOP + 0.17, z], [0, -1, 0], 0.13, 0x2a9d5a);
+    root.add(g);
+    labels.push({ node: g, appearAt });
+  };
+
+  // 2) Front lift cell - a horizontal cantilever, built in a WRAPPER so its
+  //    mounting hardware is not rotated/offset with the cell. FIXED (inner) end
+  //    bolts DOWN to the central pedestal; FREE (outer) end carries the linear
+  //    guide up to the plate.
+  const frontWrap = new THREE.Group();
+  const frontCell = withRealModel('tal220', createBeamLoadCell(mats, 'front'));
+  frontCell.rotation.z = -Math.PI / 2;
+  frontCell.position.set(-0.3, CELL_Y, 0.14);
+  frontWrap.add(frontCell);
+  addBolt(frontWrap, [0.06, CELL_TOP, 0.14], 'down', 0.12, 0x20262d); // fixed end -> pedestal
+  addComplianceGuide(frontWrap, -0.66, 0.14); // free end -> plate via the drag-axis slide
+  addPart(frontWrap, [0, 0, 0], [-0.55, -0.6, 0.5], 2);
+  addLoadArrow(-0.3, 0.14, 2);
+  addPulse([0.06, CELL_TOP + 0.02, 0.14], 'y', 0x1479c9, 2);
+
+  // 3) Rear lift cell - mirror of the front (free end aft); the ~95 mm front/rear
+  //    gap is the moment arm that becomes pitch.
+  const rearWrap = new THREE.Group();
+  const rearCell = withRealModel('tal220', createBeamLoadCell(mats, 'rear'));
+  rearCell.rotation.z = -Math.PI / 2;
+  rearCell.position.set(0.3, CELL_Y, -0.14);
+  rearWrap.add(rearCell);
+  addBolt(rearWrap, [-0.06, CELL_TOP, -0.14], 'down', 0.12, 0x20262d);
+  addComplianceGuide(rearWrap, 0.66, -0.14);
+  addPart(rearWrap, [0, 0, 0], [0.55, -0.6, 0.5], 3);
+  addLoadArrow(0.3, -0.14, 3);
+  addPulse([-0.06, CELL_TOP + 0.02, -0.14], 'y', 0x33aaf3, 3);
+
+  // 4) Moving plate - lands on the two guide carriages and bolts DOWN into each.
+  //    It floats on the cells + sting; the guides let it slide in the drag axis.
+  //    Wrapped so its bolts aren't double-offset by the plate's own position.
+  const plateWrap = new THREE.Group();
+  const plate = createMovingPlate(mats);
+  plate.position.set(0, PLATE_Y, 0);
+  plateWrap.add(plate);
+  addBolt(plateWrap, [-0.66, PLATE_Y + 0.03, 0.14], 'down', 0.075, 0x20262d);
+  addBolt(plateWrap, [0.66, PLATE_Y + 0.03, -0.14], 'down', 0.075, 0x20262d);
+  addPart(plateWrap, [0, 0, 0], [0, 1.0, 0], 4);
+  addPulse([-0.66, PLATE_Y, 0.14], 'y', 0x1479c9, 4);
+  addPulse([0.66, PLATE_Y, -0.14], 'y', 0x1479c9, 4);
+
+  // 5) Drag cell - S-type, horizontal, inline with the airflow (X). One rod-end
+  //    pins to the moving plate, the other to the frame's drag post.
+  const dragCell = withRealModel('tas501', createSBeamLoadCell(mats));
+  addPart(dragCell, [1.0, PLATE_Y, -0.28], [0.8, 0.2, 0.0], 5);
+  const dragLink = new THREE.Group();
+  addCylinder(dragLink, [0.018, 0.018, 0.16], [0.7, PLATE_Y, -0.28], mats.darkMetal, 'x'); // plate side rod
+  addCylinder(dragLink, [0.018, 0.018, 0.16], [1.32, PLATE_Y, -0.28], mats.darkMetal, 'x'); // frame side rod
+  addRodEnd(dragLink, [0.64, PLATE_Y, -0.28]);
+  addRodEnd(dragLink, [1.4, PLATE_Y, -0.28]);
+  addBolt(dragLink, [0.64, PLATE_Y, -0.28], 'z', 0.13); // shoulder bolts through the rod-ends
+  addBolt(dragLink, [1.4, PLATE_Y, -0.28], 'z', 0.13);
+  addPart(dragLink, [0, 0, 0], [0.8, 0.2, 0.0], 5);
+  addPulse([0.64, PLATE_Y, -0.28], 'x', 0xda3f48, 5);
+  addPulse([1.4, PLATE_Y, -0.28], 'x', 0xda3f48, 5);
+
+  // 6) Sting - clamps to the plate centre and rises UP through the floor slot.
+  const sting = createSting(mats);
+  addPart(sting, [-0.08, STING_Y, 0], [0, 1.1, 0], 6);
+  addPulse([-0.08, PLATE_Y + 0.05, 0], 'y', 0x334657, 6);
+
+  // 7) Aircraft - lands on the sting saddle, up in the airflow above the floor.
+  //    Scaled so its 3 m span does not dwarf the balance + wiring below.
+  const aircraft = withRealModel('fox', createFoxGlider(mats));
+  aircraft.scale.setScalar(0.45);
+  addPart(aircraft, [-0.08, AIR_Y, 0], [0, 1.0, 0.2], 7);
+  addPulse([-0.08, AIR_Y - 0.12, 0], 'y', 0xe78a32, 7);
+
+  // 8) DAQ (3x HX711 + Arduino) - on the bench beside the balance, below the
+  //    floor; kept close so the wiring is clearly readable.
+  const daq = createDaqAndLaptop(mats);
+  addPart(daq, [1.62, -0.5, -0.2], [0.6, 0.25, -0.4], 8);
+
+  // 8) Real 4-wire bridge cables: each cell -> its own HX711.
+  const boards = { front: [1.62, -0.45, -0.44], rear: [1.62, -0.45, -0.2], drag: [1.62, -0.45, 0.04] };
+  const cellOut = { front: [-0.45, -0.52, 0.14], rear: [0.45, -0.52, -0.14], drag: [1.0, -0.36, -0.28] };
+  const bridge = [mats.wRed, mats.wBlack, mats.wGreen, mats.wWhite];
+  Object.keys(cellOut).forEach((key) => {
+    const s = cellOut[key];
+    const b = boards[key];
+    bridge.forEach((material, j) => {
+      const o = (j - 1.5) * 0.02; // small spread so the 4 wires read separately
+      addWire(
+        [
+          [s[0], s[1], s[2] + o * 0.3],
+          [s[0] + (b[0] - s[0]) * 0.3, s[1] - 0.06, s[2] + (b[2] - s[2]) * 0.3 + o],
+          [s[0] + (b[0] - s[0]) * 0.72, b[1] - 0.02 + o * 0.4, s[2] + (b[2] - s[2]) * 0.72 + o],
+          [b[0] - 0.05, b[1] + 0.01, b[2] + o],
+        ],
+        material,
+        0.0075,
+        8
+      );
+    });
+  });
+  addPulse([1.62, -0.43, -0.2], 'z', 0x334657, 8);
+
+  // 9) HX711 -> Arduino: DT (green) + SCK (copper) per board, plus a shared 5 V
+  //    rail (red) and common GND rail (black) tying the three boards together.
+  const uno = [2.2, -0.54, -0.16];
+  Object.keys(boards).forEach((key, i) => {
+    const b = boards[key];
+    const lane = (i - 1) * 0.04;
+    addWire(
+      [
+        [b[0] + 0.05, b[1], b[2] - 0.03],
+        [b[0] + 0.3, b[1] - 0.03, b[2]],
+        [uno[0] - 0.06, uno[1] + 0.03, uno[2] + lane],
+        [uno[0], uno[1], uno[2] + lane],
+      ],
+      mats.wGreen,
+      0.006,
+      9
+    );
+    addWire(
+      [
+        [b[0] + 0.05, b[1], b[2] + 0.03],
+        [b[0] + 0.3, b[1] - 0.05, b[2] + 0.02],
+        [uno[0] - 0.06, uno[1] - 0.01, uno[2] + lane + 0.02],
+        [uno[0], uno[1] - 0.02, uno[2] + lane + 0.02],
+      ],
+      mats.copper,
+      0.006,
+      9
+    );
+  });
+  // Shared 5 V (red) + common GND (black) rails linking the three boards.
+  addWire(
+    [
+      [boards.front[0] - 0.02, boards.front[1] + 0.05, boards.front[2]],
+      [boards.rear[0] - 0.02, boards.rear[1] + 0.05, boards.rear[2]],
+      [boards.drag[0] - 0.02, boards.drag[1] + 0.05, boards.drag[2]],
+    ],
+    mats.wRed,
+    0.006,
+    9
+  );
+  addWire(
+    [
+      [boards.front[0] - 0.05, boards.front[1] + 0.02, boards.front[2]],
+      [boards.rear[0] - 0.05, boards.rear[1] + 0.02, boards.rear[2]],
+      [boards.drag[0] - 0.05, boards.drag[1] + 0.02, boards.drag[2]],
+    ],
+    mats.wBlack,
+    0.006,
+    9
+  );
+  addPulse([uno[0], uno[1], uno[2]], 'y', 0x0b7890, 9);
+
+  // Step labels that pop in with their part.
+  addStepLabel('frame bolted to baseplate', [-0.86, FRAME_Y + 0.2, 0.46], '#2a9d5a', 1);
+  addStepLabel('fixed end -> pedestal (M5)', [0.2, CELL_Y + 0.2, 0.16], '#9b242d', 2);
+  addStepLabel('load arrow sets fixed/free end', [-0.34, CELL_Y + 0.26, 0.16], '#2a9d5a', 2);
+  addStepLabel('free ends -> plate via drag-axis slide', [-0.74, PLATE_Y + 0.16, 0.16], '#1479c9', 4);
+  addStepLabel('drag: rod-ends, frame<->plate', [1.0, PLATE_Y + 0.2, -0.28], '#9b242d', 5);
+  addStepLabel('sting up through the floor slot', [-0.12, FLOOR_Y + 0.16, 0.22], '#334657', 6);
+  addStepLabel('only the model + sting in the air', [-0.12, AIR_Y + 0.18, 0.26], '#17799d', 7);
+  addStepLabel('red E+  black E-  green A+  white A-', [0.55, -0.66, -0.12], '#0b7890', 8);
+  addStepLabel('DT/SCK -> D2-D7  ·  5V/GND', [2.16, -0.32, -0.16], '#0b7890', 9);
+
+  return { animated, cables, labels, pulses };
+}
+
+// ===========================================================================
+// Interactive Build Guide. The accurate, followable tutorial (researched +
+// adversarially fact-checked by the build-tutorial workflow, grounded in the
+// project's own "Expanded Build Version" notes). Content lives in
+// src/buildGuide.json; this component just presents it in four tabs:
+// Build Steps (the core walkthrough), Parts & Tools, Wiring & Code, and
+// Calibrate & Pitfalls.
+// ===========================================================================
+function BuildGuideSlide() {
+  const [tab, setTab] = useState('steps');
+  const [step, setStep] = useState(0);
+  const [showCode, setShowCode] = useState(false);
+  const tabs = [
+    ['steps', 'Build Steps'],
+    ['parts', 'Parts & Tools'],
+    ['wiring', 'Wiring & Code'],
+    ['calib', 'Calibrate & Pitfalls'],
+  ];
+  return (
+    <SlideShell title="Build It Yourself, Step by Step" kicker="Followable build guide" className="guide-shell">
+      <div className="guide-layout">
+        <nav className="guide-tabs">
+          {tabs.map(([id, label]) => (
+            <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="guide-panel">
+          {tab === 'steps' && <GuideSteps step={step} setStep={setStep} />}
+          {tab === 'parts' && <GuideParts />}
+          {tab === 'wiring' && <GuideWiring showCode={showCode} setShowCode={setShowCode} />}
+          {tab === 'calib' && <GuideCalib />}
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function GuideSteps({ step, setStep }) {
+  const steps = buildGuide.steps;
+  const s = steps[step];
+  return (
+    <div className="guide-steps">
+      <div className="guide-step-rail">
+        {steps.map((st, i) => (
+          <button key={st.n} className={`grail ${i === step ? 'active' : ''}`} onClick={() => setStep(i)}>
+            <span>{st.n}</span>
+            <em>{st.phase}</em>
+          </button>
+        ))}
+      </div>
+      <article className="guide-step-card">
+        <header>
+          <div className="gstep-meta">
+            <span className="gphase">{s.phase}</span>
+            <span className="gcount">Step {s.n} of {steps.length}</span>
+          </div>
+          <h2>{s.title}</h2>
+          <p className="ggoal">{s.goal}</p>
+        </header>
+        <div className="gchips">
+          {s.parts.map((p, i) => (
+            <span key={`p${i}`} className="gchip part">{p}</span>
+          ))}
+          {s.fasteners.map((f, i) => (
+            <span key={`f${i}`} className="gchip fast">
+              <Wrench size={11} /> {f}
+            </span>
+          ))}
+        </div>
+        <ol className="gactions">
+          {s.actions.map((a, i) => (
+            <li key={i}>{a}</li>
+          ))}
+        </ol>
+        <div className="gcheck">
+          <CheckCircle2 size={16} />
+          <span><strong>Done right?</strong> {s.check}</span>
+        </div>
+        <div className="ggotcha">
+          <AlertTriangle size={16} />
+          <span><strong>Gotcha:</strong> {s.gotcha}</span>
+        </div>
+        <div className="gnav">
+          <button onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>
+            <ArrowLeft size={16} /> Prev
+          </button>
+          <button onClick={() => setStep(Math.min(steps.length - 1, step + 1))} disabled={step === steps.length - 1}>
+            Next <ArrowRight size={16} />
+          </button>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function GuideParts() {
+  return (
+    <div className="guide-parts">
+      <p className="goverview">{buildGuide.overview}</p>
+      <h3>Bill of materials</h3>
+      <div className="gbom">
+        {buildGuide.bom.map((b, i) => (
+          <article key={i} className="gbom-item">
+            <div className="gbom-head">
+              <strong>{b.part}</strong>
+              <span className="gqty">x{b.qty}</span>
+              <span className="gcost">{b.cost}</span>
+            </div>
+            <div className="gbom-spec">{b.spec}</div>
+            <div className="gbom-src">Source: {b.source}</div>
+            {b.note && <div className="gbom-note">{b.note}</div>}
+          </article>
+        ))}
+      </div>
+      <h3>Tools on the bench</h3>
+      <ul className="gtools">
+        {buildGuide.tools.map((t, i) => (
+          <li key={i}>{t}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function GuideWiring({ showCode, setShowCode }) {
+  const w = buildGuide.wiring;
+  return (
+    <div className="guide-wiring">
+      <div className="gw-toggle">
+        <button className={!showCode ? 'active' : ''} onClick={() => setShowCode(false)}>
+          <Cable size={15} /> Wiring map
+        </button>
+        <button className={showCode ? 'active' : ''} onClick={() => setShowCode(true)}>
+          Arduino sketch
+        </button>
+      </div>
+      {!showCode ? (
+        <div className="gw-tables">
+          <div className="gw-block">
+            <h3>Each cell &rarr; its own HX711</h3>
+            <ul>
+              {w.cellToHx711.map((x, i) => (
+                <li key={i}>{x}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="gw-block">
+            <h3>HX711 &rarr; Arduino Uno</h3>
+            <ul>
+              {w.hx711ToArduino.map((x, i) => (
+                <li key={i}>{x}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="gw-block notes">
+            <h3>Wiring notes</h3>
+            <ul>
+              {w.notes.map((x, i) => (
+                <li key={i}>{x}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : (
+        <pre className="gcode">
+          <code>{buildGuide.code}</code>
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function GuideCalib() {
+  return (
+    <div className="guide-calib">
+      <div className="gcal-steps">
+        <h3>Calibrate the assembled rig</h3>
+        {buildGuide.calibration.map((c) => (
+          <article key={c.n} className="gcal-item">
+            <strong>{c.n}. {c.title}</strong>
+            <ol>
+              {c.actions.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ol>
+          </article>
+        ))}
+      </div>
+      <div className="gpitfalls">
+        <h3>
+          <AlertTriangle size={15} /> Mistakes that ruin the data
+        </h3>
+        <ul>
+          {buildGuide.pitfalls.map((p, i) => (
+            <li key={i}>{p}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 

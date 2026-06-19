@@ -1,0 +1,603 @@
+{
+  "overview": "We are building a hidden, under-floor force balance for a wind tunnel: the FMS Fox 3000 mm glider sits in the airflow on a thin sting that pokes up through a slot in the tunnel floor, while every load cell, wire, and electronics board lives below the floor, out of the wind. The sting carries the aerodynamic loads down into a moving plate; that plate pushes on three strain-gauge load cells (two vertical TAL220 cantilevers for lift + pitch, one horizontal TAS501 S-cell for drag) that bend by tiny amounts, and three HX711 24-bit amplifiers turn that bending into numbers an Arduino Uno can read. After you calibrate the fully assembled rig against known weights, those numbers become real Newtons of lift, a pitching moment in N*m, and Newtons of drag, which a pitot sensor lets you turn into C_L and C_D.",
+  "bom": [
+    {
+      "part": "FMS Fox 3000 mm glider (airframe)",
+      "qty": "1",
+      "spec": "3.0 m span, ~0.744 m^2 wing area, ~4.7 kg / ~46 N flying weight",
+      "source": "FMS / Motion RC / hobby retailer",
+      "cost": "$300-400 (PNP)",
+      "note": "The test article. You only need the airframe; props/electronics can stay off for a pure aero balance. Foam glider = NO factory hard-point: you must add one (see step 8)."
+    },
+    {
+      "part": "TAL220 straight-bar load cell, 10 kg",
+      "qty": "2",
+      "spec": "80 x 12.7 x 12.7 mm single-point bending bar; mounting-hole pairs at each end (M4 pair + M5 pair); printed LOAD-DIRECTION ARROW; 4-wire (red=E+/black=E-/green=A+/white=A-)",
+      "source": "SparkFun SEN-13329 / Amazon / Robu",
+      "cost": "$8-12 each",
+      "note": "One front, one rear (~95 mm apart). Mounted as CANTILEVERS for lift + pitch. 10 kg = ~98 N each, above the 46 N airframe + margin. The end that gets ANCHORED is chosen by the ARROW, not by hole size (see step 3)."
+    },
+    {
+      "part": "TAS501 S-type load cell, 200 kg",
+      "qty": "1",
+      "spec": "51 x 19 x 76 mm S-beam, 4-wire, two threaded ends (MEASURE the thread before ordering rod ends; commonly M12x1.75 but verify)",
+      "source": "On hand / generic load-cell supplier",
+      "cost": "$15-30",
+      "note": "HONEST CAVEAT: 200 kg full scale measuring only ~5-15 N of drag uses <1% of range. Expect only a HANDFUL of noise-free counts per Newton on this channel (see drag-resolution pitfall). A 5-10 kg S-beam/bar cell would give ~20-40x better drag resolution and is effectively mandatory for usable C_D; the 200 kg is used only because it is on hand. Average + median-filter heavily."
+    },
+    {
+      "part": "HX711 amplifier/ADC board (SparkFun SEN-13879)",
+      "qty": "3",
+      "spec": "24-bit ADC, 10/80 SPS, screw terminals E+/E-/A+/A-, header pins VCC/GND/DT/SCK and a RATE pad",
+      "source": "SparkFun SEN-13879",
+      "cost": "$6-10 each",
+      "note": "ONE board per cell (lift A, lift B, drag). The Wheatstone bridge is SEALED inside each cell -- nothing to solder on a bridge. RATE is a HARDWARE strap (no software register on HX711): physically wire the RATE pad to VCC for 80 SPS."
+    },
+    {
+      "part": "Arduino Uno R3 (ATmega328P, 16 MHz)",
+      "qty": "1",
+      "spec": "5V logic, USB serial",
+      "source": "Arduino / clone",
+      "cost": "$10-25",
+      "note": "Reads all three HX711 boards over 6 digital pins (D2-D7), reads the pitot on A0, logs over USB serial. Shares 5V + one common GND to all boards."
+    },
+    {
+      "part": "2020/2040 aluminium T-slot extrusion + brackets",
+      "qty": "~3 m",
+      "spec": "20x20 (and some 20x40) slot-6 extrusion + corner/gusset brackets",
+      "source": "Misumi / Amazon / OpenBuilds",
+      "cost": "$30-50",
+      "note": "Builds the FIXED base frame. MUST end up MUCH stiffer than the moving plate. Use a CLOSED box with triangulated/gusseted corners (or 2040 verticals) -- a loose H-frame of plain 2020 can be LESS stiff in bending than a 10 mm plate and will corrupt readings. Verify stiffness (step 1 check)."
+    },
+    {
+      "part": "Aluminium moving plate",
+      "qty": "1",
+      "spec": "~6-8 mm 6061, ~150 x 150 mm",
+      "source": "Online metals / scrap",
+      "cost": "$10-20",
+      "note": "The sting bolts into this; it bears on the cantilever free ends. Stiff is required, but it MUST stay LESS stiff than the base/reference, or the reference deflects."
+    },
+    {
+      "part": "Aluminium base / cell-mounting plate",
+      "qty": "1",
+      "spec": "~10 mm 6061",
+      "source": "Online metals",
+      "cost": "$10-20",
+      "note": "The TAL220 fixed ends anchor down to this; it ties into the extrusion frame. Together (plate + frame) this is the reference structure."
+    },
+    {
+      "part": "Horizontal-compliance element (drag motion guide)",
+      "qty": "1",
+      "spec": "Miniature linear rail/carriage OR a pair of thin vertical flexure blades (e.g. 0.5-1 mm spring steel)",
+      "source": "MISUMI/Amazon (mini rail) or DIY flexures",
+      "cost": "$15-30",
+      "note": "CRITICAL and easy to miss: a plate bolted rigidly to two vertical cantilevers CANNOT translate fore-aft, so drag would never reach the S-cell. This element lets the plate move horizontally (into the S-cell) while the TAL220s still carry vertical lift. Mount it so the plate is stiff vertically but free in the drag axis."
+    },
+    {
+      "part": "Spacer/standoff set (the flex gap)",
+      "qty": "~8",
+      "spec": "M4 + M5 aluminium standoffs, height chosen so gap > max deflection + margin (see step 3 / flex-gap note)",
+      "source": "McMaster / Amazon",
+      "cost": "$8",
+      "note": "Spacers raise ONLY the anchored end of each cell off its plate, opening a clear air gap UNDER the whole bar so it can flex. Fixed end stands on standoffs on the base; free end's standoffs carry the MOVING plate (a different plate). Never stand BOTH ends on the SAME plate."
+    },
+    {
+      "part": "M5 socket-head cap screws + T-nuts/nuts",
+      "qty": "~12",
+      "spec": "M5 x 16-25 mm stainless",
+      "source": "hardware store",
+      "cost": "$6",
+      "note": "Anchor each TAL220's chosen FIXED end through its M5 holes; fasten frame to extrusion via T-nuts; bolt frame feet down."
+    },
+    {
+      "part": "M4 socket-head cap screws + nuts",
+      "qty": "~8",
+      "spec": "M4 x 12-20 mm stainless",
+      "source": "hardware store",
+      "cost": "$5",
+      "note": "Fasten each TAL220 FREE end up to the moving plate through its M4 holes."
+    },
+    {
+      "part": "Rod-end (heim) bearings + jam nuts",
+      "qty": "2",
+      "spec": "Female thread to MATCH the measured TAS501 ends (commonly M12x1.75 -- verify), self-aligning spherical",
+      "source": "McMaster / motorsport",
+      "cost": "$8-15 each",
+      "note": "One per S-cell end so the drag cell sees PURE axial load. Mount so BOTH ball centers are COLLINEAR with the drag line of action (see step 6). MEASURE the thread before ordering."
+    },
+    {
+      "part": "Sting / support rod",
+      "qty": "1",
+      "spec": "Stiff smooth steel or carbon tube/rod, ~10-16 mm dia, length to clear floor + working range",
+      "source": "hardware / hobby",
+      "cost": "$10-20",
+      "note": "The only support inside the test section. Smooth + thin = low parasitic drag. Connects drone hard-point -> AoA plate -> moving plate."
+    },
+    {
+      "part": "Angle-of-attack (AoA) plate + inclinometer",
+      "qty": "1",
+      "spec": "Indexed/protractor rotating plate, set-screw lock + digital inclinometer/angle gauge",
+      "source": "DIY laser-cut/3D-print + protractor",
+      "cost": "$15-30",
+      "note": "UNDER the floor, out of the flow; sets alpha. Define alpha=0 by leveling the WING CHORD (stated datum) and zeroing the inclinometer there so alpha values are comparable."
+    },
+    {
+      "part": "Pitot tube + differential-pressure sensor",
+      "qty": "1",
+      "spec": "Pitot-static probe + MPXV7002DP (analog, +/-2 kPa) OR Sensirion SDP31 (I2C)",
+      "source": "Amazon / Sensirion",
+      "cost": "$15-40",
+      "note": "Needed for dynamic pressure q and thus C_L/C_D. Wiring/code in step 12. Place the total-pressure probe UPSTREAM of the model (out of its wake) and the static port flush in the tunnel wall -- it is a measurement probe, the 'nothing in the flow' rule is about the BALANCE, but keep the pitot clear of the model so it neither shadows it nor sits in its wake."
+    },
+    {
+      "part": "Calibration mass set",
+      "qty": "1 set",
+      "spec": "Known masses 0.1-5 kg (100 g, 200 g, 500 g, 1 kg, 2 kg)",
+      "source": "lab / gym / water bottles weighed on a kitchen scale",
+      "cost": "$20-40",
+      "note": ">=5 points across range. Apply LIFT masses THROUGH the sting/load point, and PITCH masses at known fore/aft offsets (see calibration)."
+    },
+    {
+      "part": "Low-friction pulley + low-stretch string",
+      "qty": "1",
+      "spec": "Ball-bearing pulley + braided line",
+      "source": "hardware store",
+      "cost": "$8",
+      "note": "Redirects a hanging mass into a HORIZONTAL pull at the drag-load height. Keep the string perfectly horizontal/aligned or it biases the drag slope."
+    },
+    {
+      "part": "Hard-stop hardware (bidirectional overload stops)",
+      "qty": "set",
+      "spec": "Adjustable set screws / bumpers, lockable",
+      "source": "hardware store",
+      "cost": "$10",
+      "note": "Must limit plate travel in BOTH vertical directions (up AND down) AND in the drag axis, engaging before any TAL220 free end exceeds ~98 N (10 kg) or the TAS501 sees damaging side/over load. Clearance ~1.5x max working deflection."
+    },
+    {
+      "part": "Fairing / cover + 4-conductor shielded cable + clamps",
+      "qty": "set",
+      "spec": "Thin sting fairing + shielded cable + zip-tie/clamp anchors",
+      "source": "hardware / DIY",
+      "cost": "$10",
+      "note": "Electronics live under the floor; service loops + clamps to the FIXED frame so no cable pulls on the moving plate."
+    }
+  ],
+  "tools": [
+    "Metric hex/Allen key set (M4 + M5 socket-head screws)",
+    "Adjustable wrench + spanners (rod ends, S-cell threaded ends, jam nuts)",
+    "Cordless drill + metric drill bits (clearance + tap-drill sizes for M4/M5)",
+    "M4 and M5 taps + tap handle (threading the plates)",
+    "Thread gauge / thread pitch comb + calipers (CONFIRM the TAS501 end thread before ordering rod ends)",
+    "Digital calipers (set ~95 mm cell spacing, flex-gap height, hole pattern)",
+    "Combination / machinist square (cells parallel; drag axis square to flow)",
+    "Digital inclinometer / angle gauge (set + verify AoA, level base)",
+    "Wire strippers + small flat screwdriver (HX711 screw terminals)",
+    "Soldering iron + heat-shrink (extend/terminate cell leads, RATE-to-VCC strap)",
+    "Multimeter (continuity, verify 5V rail + common GND, confirm RATE tied high)",
+    "Jigsaw / rotary tool / router + file (cut the floor slot, deburr)",
+    "Laptop with Arduino IDE + USB-B cable; a serial-logging tool (CoolTerm / PuTTY logging / a short Python pyserial script) to capture CSV",
+    "Medium (blue) thread-locker for structural M5 anchors",
+    "Spirit level (level the tunnel floor / base so gravity loads the cells cleanly)"
+  ],
+  "steps": [
+    {
+      "n": 1,
+      "phase": "Frame",
+      "title": "Build the rigid fixed base frame and verify it out-stiffs the plate",
+      "goal": "Create a reference structure provably much stiffer than the moving plate.",
+      "parts": [
+        "2020/2040 extrusion",
+        "gusset/corner brackets",
+        "base/cell-mounting plate (~10 mm)"
+      ],
+      "fasteners": [
+        "M5 T-nuts + M5 x 16 mm into slots",
+        "gusset-bracket M5 screws"
+      ],
+      "actions": [
+        "Cut extrusion into a CLOSED box (not an open H) sized to sit under the tunnel floor; triangulate/gusset every corner or use 2040 uprights.",
+        "Bolt the ~10 mm base/cell plate across the top.",
+        "Hang or press a known weight (e.g. 5 kg) at the mid-span of the assembled base and of a free-spanning sample of the moving plate; compare deflection with calipers/dial indicator.",
+        "Stiffen the base (more bracing/thicker plate) until its deflection is clearly less than the moving plate's under the same load."
+      ],
+      "check": "Under the same test load, the base deflects noticeably LESS than the moving plate; you cannot rack or twist the frame by hand; the top reads level.",
+      "gotcha": "A loose 2020 H-frame can be LESS stiff than a 10 mm plate -> the 'reference' moves and corrupts every reading. Build a braced closed box and actually MEASURE that it wins."
+    },
+    {
+      "n": 2,
+      "phase": "Frame",
+      "title": "Cut the floor slot and bolt the base under the tunnel",
+      "goal": "Anchor the reference and give the sting a clearance slot.",
+      "parts": [
+        "assembled base frame",
+        "tunnel floor / heavy bench"
+      ],
+      "fasteners": [
+        "M5+ bolts (or clamps) through frame feet into tunnel structure/bench",
+        "floor-slot deburr"
+      ],
+      "actions": [
+        "ASSUMED tunnel: a ~0.5 x 0.5 m (or your actual) closed test section with a flat floor of ~6-12 mm ply/acrylic/aluminium. Record YOUR test-section size.",
+        "Cut a floor slot sized to clear the sting across the FULL AoA range: length = sting-tip fore/aft sweep over your alpha range + ~10 mm margin; width = sting diameter + ~6 mm; deburr edges.",
+        "Position the frame so the slot sits directly over the moving-plate / sting location.",
+        "Bolt frame feet to the tunnel frame; if there are no tapped holes, clamp to a heavy bench or drill the bench. Re-level and shim feet."
+      ],
+      "check": "Push the frame hard -- it does not shift; the sting can pass through the slot without touching at min and max alpha.",
+      "gotcha": "If the base can rock even slightly, that motion reads as fake force. Anchor it like part of the building, and make the slot generous so it never rubs."
+    },
+    {
+      "n": 3,
+      "phase": "Cells",
+      "title": "Mount the FRONT TAL220 as a cantilever -- orient by the ARROW",
+      "goal": "Install the first lift/pitch bar so it actually bends, oriented correctly.",
+      "parts": [
+        "front TAL220",
+        "M5 standoffs"
+      ],
+      "fasteners": [
+        "2x M5 x 20 mm through ONE end's holes into the base, on M5 standoffs",
+        "(M4 standoffs pre-staged on the other end -- they carry nothing yet)"
+      ],
+      "actions": [
+        "Find the printed LOAD-DIRECTION ARROW on the cell. The FIXED (anchored) end is the one the arrow points toward/away from per the cell's marking -- the cantilever must be oriented so the moving plate later pushes the FREE end in the arrow's sense. Hole size does NOT decide this; M5=anchor / M4=plate is just OUR build convention, applied AFTER the arrow sets orientation.",
+        "Anchor ONLY the chosen fixed end DOWN to the base through its hole pair, sitting on M5 standoffs so a clear air gap opens under the whole bar.",
+        "Leave the FREE end completely UNSUPPORTED (cantilevered in air). Pre-stage M4 standoffs on it, but they bear nothing until the moving plate lands (step 5).",
+        "Confirm open air under the entire bar length and under the free end."
+      ],
+      "check": "With ONLY the fixed end bolted and the free end truly unsupported, press the free end: it deflects a fraction of a mm and springs back, with open air below so it never bottoms on the base.",
+      "gotcha": "THE #1 MISTAKE: bolting BOTH ends flat -> the bar can't flex -> reads ~0. Second mistake: orienting by hole size instead of the arrow -> a reversed cantilever inverts the sign AND side-loads the gauge."
+    },
+    {
+      "n": 4,
+      "phase": "Cells",
+      "title": "Mount the REAR TAL220 identically, ~95 mm behind the front",
+      "goal": "Add the second vertical bar so front-minus-rear gives a pitching moment.",
+      "parts": [
+        "rear TAL220",
+        "M5 standoffs"
+      ],
+      "fasteners": [
+        "2x M5 x 20 mm fixed end to base on standoffs",
+        "(M4 standoffs pre-staged on free end)"
+      ],
+      "actions": [
+        "Use calipers to place the rear cell's free-end centerline exactly ~95 mm behind the front cell's (this gap is the pitch arm -- record the EXACT value for the code).",
+        "Orient it by ITS arrow the same sense as the front cell; anchor only its fixed end on standoffs; leave its free end unsupported.",
+        "Make both bars parallel and both free ends at the SAME height (square + calipers).",
+        "Record which cell is 'front' (this fixes the pitch sign later)."
+      ],
+      "check": "Both free ends are coplanar, parallel, same height; the 95 mm spacing is measured and written down.",
+      "gotcha": "If the two cells differ in height/parallelism, the rigid plate twists and lift leaks into pitch. Get them coplanar before the plate goes on."
+    },
+    {
+      "n": 5,
+      "phase": "Plate",
+      "title": "Add the moving plate via the horizontal-compliance element",
+      "goal": "Tie both free ends to one stiff plate that can still move fore-aft into the drag cell.",
+      "parts": [
+        "moving plate",
+        "horizontal-compliance element (mini rail or flexure blades)",
+        "staged M4 standoffs"
+      ],
+      "fasteners": [
+        "4x M4 x 16 mm through the plate into the two free-end M4 holes (2 per cell)",
+        "compliance-element mounting screws"
+      ],
+      "actions": [
+        "Mount the horizontal-compliance element between the cantilever free ends and the moving plate: it must be STIFF vertically (so lift transfers to the TAL220s) but FREE in the drag axis (so the plate can slide a little to load the S-cell).",
+        "Lower the plate onto the free-end M4 standoffs and bolt ONLY to the free ends (M4 holes). The plate must NOT touch the fixed ends or the base.",
+        "Confirm a continuous air gap under the whole moving plate -- nothing rubbing anywhere.",
+        "Press DOWN: both cells share the load. Push FORE-AFT: the plate translates slightly via the compliance element with the TAL220s barely resisting."
+      ],
+      "check": "Plate is supported only by the two free ends; pressing down deflects both cells and it returns; pushing fore/aft moves it freely in the drag axis; no part touches the base or fixed ends.",
+      "gotcha": "Without the compliance element a rigid plate on two vertical cantilevers CANNOT translate, so drag never reaches the S-cell. And any accidental plate-to-base contact short-circuits the load path."
+    },
+    {
+      "n": 6,
+      "phase": "Cells",
+      "title": "Mount the drag S-cell horizontally, axis on the drag line of action",
+      "goal": "Capture drag as pure axial pull with no moment leak into lift/pitch.",
+      "parts": [
+        "TAS501 S-cell",
+        "2x rod-end bearings + jam nuts"
+      ],
+      "fasteners": [
+        "rod ends threaded into both S-cell ends (measured thread, jam-nutted)",
+        "pins/bolts: one rod end to a stiff frame anchor, the other to the moving plate"
+      ],
+      "actions": [
+        "MEASURE the S-cell end thread first; thread a matched rod end into each end and lock with jam nuts.",
+        "Define the DRAG-LOAD HEIGHT: the height of the horizontal line of action where the sting/link transmits drag into the plate. Record it (you'll reuse it for drag calibration).",
+        "Mount the cell horizontally with its axis (the straight line through BOTH rod-end ball centers) COLLINEAR with that drag line of action -- same height, and parallel to the wind. Pin one rod end to the frame, the other to the plate.",
+        "Use a square to align the axis to the flow; the spherical rod ends absorb tiny misalignment."
+      ],
+      "check": "Pulling the plate in the flow direction loads the S-cell purely axially; both ball centers and the sting drag line are at the same height/colinear; rod ends pivot freely (no side load).",
+      "gotcha": "If the S-cell axis sits ABOVE or BELOW the drag line, drag makes a moment the TAL220s read as false lift/pitch. Never bolt the S-cell ends rigidly. And remember the 200 kg cell barely flexes on ~10 N -- alignment + averaging matter more here."
+    },
+    {
+      "n": 7,
+      "phase": "Sting",
+      "title": "Add the sting and AoA mechanism; define alpha=0",
+      "goal": "Provide in-flow support and a repeatable, datum-referenced alpha.",
+      "parts": [
+        "sting rod",
+        "AoA indexed plate",
+        "inclinometer"
+      ],
+      "fasteners": [
+        "bolts: sting -> AoA plate -> moving plate",
+        "AoA set-screw lock"
+      ],
+      "actions": [
+        "Bolt the AoA plate to the moving plate (stays under the floor, out of flow).",
+        "Fix the stiff smooth sting to the AoA plate so it rises through the floor slot.",
+        "Level the WING CHORD (stated datum) with the model later attached, and zero the inclinometer THERE so alpha=0 means chord-level; record the datum.",
+        "Confirm the sting clears the slot edges across the full alpha range."
+      ],
+      "check": "Rotating the AoA plate changes alpha smoothly and locks solid; inclinometer zero corresponds to a level wing chord; the sting never rubs the slot at any tested alpha.",
+      "gotcha": "Undefined alpha=0 makes data incomparable. Sting touching the slot edge reads as fake aero load -- keep the slot generous."
+    },
+    {
+      "n": 8,
+      "phase": "Sting",
+      "title": "Reinforce the foam airframe and mount it on the sting",
+      "goal": "Spread sting load into real structure on a foam glider that has no hard-point.",
+      "parts": [
+        "FMS Fox airframe",
+        "plywood/G10 backing plate",
+        "carbon spar/rod",
+        "epoxy"
+      ],
+      "fasteners": [
+        "bolts: sting top -> backing plate",
+        "epoxied backing plate + spar bracket at the main wing spar / CG"
+      ],
+      "actions": [
+        "Locate the main wing spar / CG region on the belly. Bond a plywood or G10 backing plate (e.g. ~60 x 60 mm) into the foam there with epoxy, tying it to a short carbon rod/spar so load spreads into the structure, not just foam.",
+        "Add captive nuts/threaded inserts in the backing plate for the sting bolts.",
+        "Bolt the airframe to the sting top; verify only the airframe + thin sting are in the flow.",
+        "Check the model is level (chord datum) at alpha=0, centered, and clears the tunnel walls."
+      ],
+      "check": "The model is rigidly on the sting (no wobble), sits at the defined alpha=0, and only the sting + airframe see wind.",
+      "gotcha": "A weak foam-only mount lets the model wobble and adds vibration noise. Tie the backing plate into the spar, not bare foam."
+    },
+    {
+      "n": 9,
+      "phase": "Wiring",
+      "title": "Add bidirectional hard stops, fairing, and strain-relieved wiring",
+      "goal": "Protect every cell from overload and keep cables from contaminating data.",
+      "parts": [
+        "adjustable hard stops",
+        "sting fairing",
+        "4-conductor shielded cable",
+        "clamps/zip ties"
+      ],
+      "fasteners": [
+        "hard-stop set screws into frame brackets",
+        "cable-clamp screws to the FIXED frame"
+      ],
+      "actions": [
+        "Set stops that arrest the plate in BOTH vertical directions (down for lift, UP for negative-lift/inverted-gust) before either TAL220 free end exceeds ~98 N, and in the DRAG axis before the TAS501 sees damaging side/over-axial load.",
+        "Set the clearance to ~1.5x the maximum expected working deflection -- larger than normal travel (so they never touch mid-run) but well inside each cell's rated deflection.",
+        "Add a thin fairing over the sting.",
+        "Route each cell's 4 wires to its HX711 with a slack service loop, clamping cable to the FIXED frame, never the moving plate."
+      ],
+      "check": "Driving the plate to its limit in any direction, a stop catches before any cell over-ranges; at every plate position no cable goes taut or tugs the moving plate.",
+      "gotcha": "Stops on only the down direction leave the cantilevers exposed to up-gusts; a cable pulling the plate adds phantom force. Bidirectional stops + slack are non-negotiable."
+    },
+    {
+      "n": 10,
+      "phase": "Wiring",
+      "title": "Drill/tap the plates and wire the three cells to three HX711s",
+      "goal": "Land all three force channels into the Uno with a defined fastener stack.",
+      "parts": [
+        "3x HX711 SEN-13879",
+        "Arduino Uno",
+        "jumper wires"
+      ],
+      "fasteners": [
+        "screw-terminal clamps (cell leads)",
+        "Dupont jumpers to Uno headers",
+        "M4/M5 through the drilled/tapped plate holes"
+      ],
+      "actions": [
+        "Transfer each TAL220's hole pattern (measure the M4-pair and M5-pair spacing on the 80 mm bar with calipers) onto the base and moving plates; drill CLEARANCE holes in the plates and tap the standoffs/holes as needed. Stack order each end: SCREW -> through plate -> threaded standoff -> into the cell's threaded hole.",
+        "Per cell land Channel A: red->E+, black->E-, green->A+, white->A-.",
+        "Map data/clock: lift A DT=D2 SCK=D3; lift B DT=D4 SCK=D5; drag DT=D6 SCK=D7. Use SEPARATE SCK per board (as coded) -- do NOT bus them.",
+        "Tie all three VCC to Uno 5V, all three GND to ONE common Uno GND, and physically strap each RATE pad to VCC (a wire/solder bridge -- there is no software rate register).",
+        "Twist each cell's 4 leads, keep them short, away from motors/PWM/mains."
+      ],
+      "check": "With the sketch loaded, pressing the plate moves lift channels and pushing it fore/aft moves drag; none read a frozen constant; multimeter confirms 5V, common GND, and RATE tied high on all three.",
+      "gotcha": "Crossed DT lines make boards read each other -- keep each DT separate. RATE is a wire, not a setRate() call."
+    },
+    {
+      "n": 11,
+      "phase": "Sting",
+      "title": "Equalize the two cantilevers (centered-load balance check)",
+      "goal": "Make front and rear actually share a centered load so pitch is meaningful.",
+      "parts": [
+        "centered known mass (e.g. 1 kg)",
+        "shim stock"
+      ],
+      "fasteners": [
+        "shims under a cantilever free-end mount as needed"
+      ],
+      "actions": [
+        "Place a known mass at the GEOMETRIC center between the two cells (equidistant fore/aft).",
+        "Read liftA and liftB. They should be roughly equal (within ~5-10%).",
+        "If one reads high, the plate is tilting or one bar sits higher/stiffer -- shim the lower free-end mount or re-seat until centered load splits evenly.",
+        "Re-check coplanarity after shimming."
+      ],
+      "check": "A centered mass gives liftA ~ liftB within tolerance; (a-b) ~ 0 for a centered load, confirming pitch is referenced to the geometric center.",
+      "gotcha": "If the split is indeterminate, front-minus-rear pitch is meaningless. Fix the share BEFORE trusting any moment."
+    },
+    {
+      "n": 12,
+      "phase": "Wiring",
+      "title": "Mount and wire the pitot/airspeed sensor",
+      "goal": "Get dynamic pressure q so forces become C_L and C_D.",
+      "parts": [
+        "pitot-static probe",
+        "MPXV7002DP (analog) or SDP31 (I2C)",
+        "tubing"
+      ],
+      "fasteners": [
+        "probe mount to tunnel wall/upstream strut",
+        "sensor leads to Uno"
+      ],
+      "actions": [
+        "Mount the total-pressure probe UPSTREAM of the model, out of its wake; take static from a flush wall port. Keep it clear of the model so it neither shadows nor sits behind it.",
+        "MPXV7002DP: VCC->5V, GND->GND, Vout->A0. SDP31: SDA->A4, SCL->A5, 3.3V power (level-safe) -- pick ONE; the sketch shows the analog MPXV7002DP path on A0.",
+        "Connect total to the + port and static to the - port so positive output = forward flow.",
+        "Use air density rho = 1.204 kg/m^3 (20 C, sea level) -- adjust for your conditions."
+      ],
+      "check": "With the tunnel off the sensor reads ~0 differential; with flow it reads a stable positive value that rises with fan speed; q = reading converts to a sensible airspeed.",
+      "gotcha": "A pitot in the model's wake reads garbage. Keep it upstream and clear. Confirm your sensor's V/Pa scale from its datasheet before trusting q."
+    },
+    {
+      "n": 13,
+      "phase": "Calibrate",
+      "title": "Calibrate the fully assembled balance, then run wind-on",
+      "goal": "Turn raw counts into trustworthy Newtons, a true moment, and coefficients.",
+      "parts": [
+        "calibration masses",
+        "pulley + string",
+        "pitot sensor"
+      ],
+      "fasteners": [
+        "string tie-off at the recorded drag-load height"
+      ],
+      "actions": [
+        "With the WHOLE rig assembled and tunnel OFF, tare all three channels (dead weight of plate/sting/model zeroed out).",
+        "Run single-channel, lift, pitch, drag, and cross-axis calibration per the calibration section; store slopes/offsets (and the 2x2 matrix).",
+        "Verify sign conventions: pressing the FRONT of the plate must drive pitch POSITIVE (nose-up convention); a vertical push must raise lift; a fore-aft pull must raise drag. Fix wiring/cal-factor SIGN before logging.",
+        "At each test alpha take a tunnel-off tare, turn on the tunnel, let it settle, average + median-filter 5-15 s, subtract tare, apply slopes + matrix, use q from the pitot to compute C_L and C_D; log BOTH raw counts and processed values."
+      ],
+      "check": "Known weights read back within a few percent on lift and drag; a centered vs front-biased load gives the expected pitch sign; wind-on values are stable and sensible vs alpha.",
+      "gotcha": "NEVER calibrate the bare cell on the bench -- the assembled frame adds friction/alignment/coupling. Calibrate only after everything is bolted together."
+    }
+  ],
+  "wiring": {
+    "cellToHx711": [
+      "Each load cell is a SEALED 4-wire Wheatstone bridge -- nothing to solder on a bridge; land 4 wires on Channel A of its OWN HX711.",
+      "Front TAL220 (lift A): red->E+, black->E-, green->A+, white->A- on HX711 #1.",
+      "Rear TAL220 (lift B): red->E+, black->E-, green->A+, white->A- on HX711 #2.",
+      "TAS501 (drag): red->E+, black->E-, green->A+, white->A- on HX711 #3.",
+      "SIGN/POLARITY CAUTION: if a channel reads the WRONG way (down when load goes up), FIRST confirm the cantilever's arrow/orientation is correct -- an inverted sign often means the cell is mounted BACKWARDS (a mechanical fault that also side-loads the gauge), not a wiring issue. Only after the mechanics check out should you swap green/white or use a NEGATIVE calibration factor, then recalibrate."
+    ],
+    "hx711ToArduino": [
+      "Lift A (front TAL220) HX711 #1: DT -> D2, SCK -> D3.",
+      "Lift B (rear  TAL220) HX711 #2: DT -> D4, SCK -> D5.",
+      "Drag (TAS501) HX711 #3: DT -> D6, SCK -> D7.",
+      "All three HX711 VCC -> Arduino 5V; all three GND -> ONE common Arduino GND.",
+      "RATE is a HARDWARE strap: physically wire each board's RATE pad to VCC for 80 SPS. The HX711 has no I2C/SPI config and no setRate() -- the sketch cannot set this; it is a wire.",
+      "Pitot (MPXV7002DP): VCC->5V, GND->GND, Vout->A0 (or SDP31 on A4/A5 I2C -- pick one).",
+      "Arduino -> laptop via USB-B for power during test and CSV logging at 115200 baud."
+    ],
+    "notes": [
+      "ONE HX711 per cell -- do not multiplex three cells onto one board.",
+      "Each board gets its OWN DT pin AND its own SCK pin (D3/D5/D7), exactly as wired and coded. Only 5V and GND are shared. Do NOT bus the SCK lines together -- keeping them separate matches the pin map and keeps reads independent. (The only real cross-talk hazard is crossing the DT lines.)",
+      "Twist each cell's 4 leads and keep them short -- bridge output is only a few mV and long unshielded leads pick up noise.",
+      "Strain-relieve and clamp ALL cable to the FIXED frame with a slack service loop so no wire ever pulls on the moving plate (phantom force).",
+      "Use a clean, stable 5V supply and a solid common ground; route cell leads away from motors/PWM/mains.",
+      "HX711 timing: bogde's library bit-bangs the clock and can desync (miss the 24th pulse) if an interrupt holds SCK high > ~60 us, which back-to-back reads + 115200 serial can provoke. Median-filter the data (not just mean) so one desync spike doesn't skew the low-resolution drag channel; if desyncs persist, guard each read with noInterrupts()/interrupts()."
+    ]
+  },
+  "code": "/*\n * Wind-Tunnel Force Balance -- 3-channel HX711 reader + pitot (Arduino Uno)\n * -----------------------------------------------------------------------\n * Channels:\n *   liftA = FRONT TAL220 (10 kg)   DT=D2  SCK=D3   -> HX711 #1\n *   liftB = REAR  TAL220 (10 kg)   DT=D4  SCK=D5   -> HX711 #2\n *   drag  = TAS501 S-cell (200 kg) DT=D6  SCK=D7   -> HX711 #3\n *   pitot = MPXV7002DP analog out  -> A0\n *\n * Outputs (after calibration):\n *   Lift  = liftA + liftB                          [N]\n *   Pitch = (liftA - liftB) * (SPACING_M / 2.0)    [N*m]  about the MIDPOINT\n *           between the two cells. See PITCH NOTE below -- this divides by 2\n *           so the value is the TRUE moment about the centroid, NOT\n *           differential*full-spacing. Keep this consistent with C_m downstream.\n *   Drag  = drag                                   [N]\n *\n * SIGN CONVENTIONS (verify physically during calibration):\n *   - Lift positive = upward. lift = a + b only sums correctly once BOTH\n *     liftA and liftB are calibrated to read +N for UPWARD load. The cal\n *     factors below MAY legitimately be NEGATIVE (depends on bridge polarity /\n *     cantilever sense) -- but both lift channels must end up POSITIVE-up, or\n *     two opposite-sign factors silently cancel to lift ~ 0.\n *   - Pitch positive = FRONT cell loaded more than rear = NOSE-UP moment.\n *     This depends on which physical cell is wired to D2/D3 (\"front\").\n *     Verify: press ONLY the front of the plate -> Pitch must go POSITIVE.\n *   - Drag positive = downstream pull on the plate.\n *\n * PITCH NOTE (factor of 2): two parallel vertical reactions a distance d apart\n *   form a couple M = (F_front - F_rear) * d/2 about the midpoint between them.\n *   We use SPACING_M/2 here so \"Pitch\" is that true midpoint moment. If you\n *   prefer the spec's \"differential * full spacing\" couple referenced to one\n *   cell, drop the /2.0 -- but pick ONE definition and document it so C_m\n *   isn't off by 2x.\n *\n * Library: bogde \"HX711 Arduino Library\" by Bogdan Necula (install via Library\n *   Manager). Header is HX711.h; this sketch uses begin(DOUT,SCK), tare(times),\n *   set_scale(), get_value(times), get_units(times) -- all present in that lib.\n *   Confirm the AUTHOR is \"bogde\" (other HX711 libs have different APIs).\n *\n * Drag resolution: 200 kg cell on ~5-15 N is <1% FS -> only a handful of\n *   noise-free counts/N. Channel A is already at max gain 128 (begin default).\n *   We AVERAGE and MEDIAN-FILTER. If counts/N on drag is within a few counts of\n *   noise, swapping to a 5-10 kg cell is effectively mandatory for usable C_D.\n *\n * Calibration (no reflash needed -- send 'c' over serial to toggle modes):\n *   1) Tare with NO live load (tunnel off).\n *   2) In CAL mode the sketch prints the TARED raw value get_value(N_AVG)\n *      (i.e. raw MINUS the no-load offset -- not read()). Apply a KNOWN force\n *      along each axis (convert mass: F[N] = mass[kg] * 9.81).\n *      calFactor = (tared get_value) / F_in_Newtons   (may be negative).\n *   3) Enter CAL_LIFT_A/B/DRAG below; in RUN mode get_units() returns Newtons.\n *   The code uses ONE scale + tare offset per channel (a linear a*R fit through\n *   the tared zero). The a*R+b lab fits collapse to this because tare() removes\n *   b; if you keep a separate offset, subtract it before applying the scale.\n */\n\n#include \"HX711.h\"\n\n// ---------------- Pin map (DT, SCK) ----------------\nconst byte DT_LIFT_A = 2,  SCK_LIFT_A = 3;   // FRONT TAL220\nconst byte DT_LIFT_B = 4,  SCK_LIFT_B = 5;   // REAR  TAL220\nconst byte DT_DRAG   = 6,  SCK_DRAG   = 7;   // TAS501 S-cell\nconst byte PIN_PITOT = A0;                    // MPXV7002DP analog out\n\n// ---------------- Geometry ----------------\n// Front/rear cell spacing = pitch arm. MEASURE YOURS with calipers.\nconst float SPACING_M = 0.095f;   // ~95 mm between front & rear cells\n\n// ---------------- Air / pitot constants ----------------\nconst float RHO_AIR   = 1.204f;   // kg/m^3 (20 C, sea level) -- adjust to site\n// MPXV7002DP: Vout = 2.5 V at 0 Pa, sensitivity 1.0 V/kPa (0.001 V/Pa).\nconst float PITOT_V0      = 2.5f;     // V at zero differential\nconst float PITOT_V_PER_PA = 0.001f;  // V per Pa (from datasheet)\nconst float ADC_VREF      = 5.0f;     // Uno ADC reference (V)\n\n// ---------------- Calibration factors (counts per Newton) ----------------\n// Found in CAL mode (tared get_value / force_N). MAY BE NEGATIVE -- but both\n// lift factors must make their channel read POSITIVE for UPWARD load.\n// Placeholders -- REPLACE with your measured numbers.\nfloat CAL_LIFT_A = 1000.0f;   // FRONT TAL220\nfloat CAL_LIFT_B = 1000.0f;   // REAR  TAL220\nfloat CAL_DRAG   = 100.0f;    // TAS501 (low resolution -- expect a small |value|)\n\n// ---------------- Averaging ----------------\n// uint16_t so heavy averaging on the noisy drag channel can't wrap a byte.\n// NOTE: bogde get_value()/get_units() take a BYTE count (max 255). We cap N_AVG\n// at 255 before calling the library so a large request can't silently wrap.\nuint16_t N_AVG = 16;\nbyte avgTimes() { return (N_AVG > 255) ? 255 : (byte)N_AVG; }\n\n// Mode: toggled live by sending 'c' (calibrate) / 'r' (run) over serial.\nbool calibrate = false;\n\nHX711 liftA, liftB, drag;\n\n// ---- median of 5 quick reads to reject HX711 desync spikes ----\nlong medianValue(HX711 &cell) {\n  long s[5];\n  for (byte i = 0; i < 5; i++) s[i] = cell.get_value(avgTimes());\n  for (byte i = 0; i < 4; i++)\n    for (byte j = i + 1; j < 5; j++)\n      if (s[j] < s[i]) { long t = s[i]; s[i] = s[j]; s[j] = t; }\n  return s[2];\n}\nfloat medianUnits(HX711 &cell, float scale) {\n  return (float)medianValue(cell) / scale;\n}\n\nfloat readQ_Pa() {\n  int raw = analogRead(PIN_PITOT);\n  float v  = raw * (ADC_VREF / 1023.0f);\n  float pa = (v - PITOT_V0) / PITOT_V_PER_PA;   // differential pressure [Pa]\n  if (pa < 0) pa = 0;                            // clamp tiny negatives\n  return pa;                                     // == dynamic pressure q\n}\n\nvoid setup() {\n  Serial.begin(115200);\n  while (!Serial) { /* wait for USB serial */ }\n\n  liftA.begin(DT_LIFT_A, SCK_LIFT_A);   // gain 128, Channel A (max gain)\n  liftB.begin(DT_LIFT_B, SCK_LIFT_B);\n  drag.begin (DT_DRAG,   SCK_DRAG);\n\n  liftA.set_scale(CAL_LIFT_A);\n  liftB.set_scale(CAL_LIFT_B);\n  drag.set_scale (CAL_DRAG);\n\n  Serial.println(F(\"Taring... keep the balance UNLOADED (tunnel off).\"));\n  liftA.tare(20);\n  liftB.tare(20);\n  drag.tare(20);\n  Serial.println(F(\"Tare done. Send 'c' for CALIBRATE, 'r' for RUN.\"));\n  Serial.println(F(\"CSV(run): millis,liftA_N,liftB_N,drag_N,Lift_N,Pitch_Nm,Drag_N,q_Pa,V_ms\"));\n}\n\nvoid loop() {\n  if (Serial.available()) {\n    char c = Serial.read();\n    if (c == 'c') { calibrate = true;  Serial.println(F(\"CAL: printing TARED raw counts (get_value). calFactor = count/force_N, force_N = kg*9.81. ch: liftA  liftB  drag\")); }\n    if (c == 'r') { calibrate = false; Serial.println(F(\"RUN mode.\")); }\n  }\n\n  if (calibrate) {\n    long a = medianValue(liftA);\n    long b = medianValue(liftB);\n    long d = medianValue(drag);\n    Serial.print(a); Serial.print('\\t');\n    Serial.print(b); Serial.print('\\t');\n    Serial.println(d);\n    delay(250);\n    return;\n  }\n\n  // ---- Normal run: forces in Newtons (median-filtered) ----\n  float a = medianUnits(liftA, CAL_LIFT_A);   // front lift [N]\n  float b = medianUnits(liftB, CAL_LIFT_B);   // rear  lift [N]\n  float d = medianUnits(drag,  CAL_DRAG);     // drag       [N]\n\n  float lift  = a + b;                              // total lift  [N]\n  float pitch = (a - b) * (SPACING_M / 2.0f);       // moment about MIDPOINT [N*m]\n  float dragN = d;                                  // drag        [N]\n\n  // Dynamic pressure + airspeed from the pitot.\n  float q = readQ_Pa();                             // [Pa]\n  float V = sqrt(2.0f * q / RHO_AIR);               // [m/s]\n  // C_L, C_D = force / (q * S). S = 0.744 m^2 for the Fox; compute downstream.\n\n  Serial.print(millis()); Serial.print(',');\n  Serial.print(a, 3);     Serial.print(',');\n  Serial.print(b, 3);     Serial.print(',');\n  Serial.print(d, 3);     Serial.print(',');\n  Serial.print(lift, 3);  Serial.print(',');\n  Serial.print(pitch, 4); Serial.print(',');\n  Serial.print(dragN, 3); Serial.print(',');\n  Serial.print(q, 2);     Serial.print(',');\n  Serial.println(V, 2);\n\n  // Real loop rate note: median-of-5 x get_value(16) on 3 channels at 80 SPS\n  // is ~5*16/80 = 1 s per channel of conversions -> well under 2 Hz, NOT 20 Hz.\n  // For faster rates, drop N_AVG / median count, or read raw and average in SW.\n  delay(50);\n}\n",
+  "calibration": [
+    {
+      "n": 1,
+      "title": "Assemble fully, then tare (zero)",
+      "actions": [
+        "Finish the ENTIRE mechanical build first -- the frame adds alignment, friction, and coupling the bare cell never sees, so the factory cert does not apply.",
+        "With the tunnel OFF and only the dead weight of plate/sting/model present, run tare() on all three channels (send the sketch's reset or power-cycle).",
+        "This removes the dead-weight offset (the 'b' in any a*R+b fit) so only LIVE aerodynamic load is measured and the code's single scale factor suffices."
+      ]
+    },
+    {
+      "n": 2,
+      "title": "Single-channel raw-to-Newton (per cell)",
+      "actions": [
+        "Send 'c' to enter CAL mode; the sketch prints the TARED raw value get_value(N_AVG) (raw MINUS the no-load offset -- NOT read()).",
+        "Convert every known mass to force: F[N] = mass[kg] * 9.81.",
+        "For each cell apply a known force ALONG its axis: lift via masses through the sting/load point (not random plate spots); drag via a known axial pull at the drag-load height.",
+        "calFactor = (tared count) / F_N for each channel. The factor MAY be negative -- but both lift factors must make their channel read POSITIVE for upward load.",
+        "Enter CAL_LIFT_A, CAL_LIFT_B, CAL_DRAG; send 'r' to run."
+      ]
+    },
+    {
+      "n": 3,
+      "title": "Lift calibration (system response, vertical, through the load point)",
+      "actions": [
+        "Tunnel OFF; set the test angle of attack.",
+        "Record the zero reading R_L0 with no added vertical load.",
+        "Hang/apply known vertical masses THROUGH the sting/defined load point (F = m*9.81), record R_Li -- loading elsewhere changes the front/rear split and biases pitch.",
+        "Repeat for >=5 masses spanning the expected lift range.",
+        "Fit F_L = a_L*R_L + b_L; because you tared, b_L ~ 0 and a_L is the slope the code's scale uses. Store it."
+      ]
+    },
+    {
+      "n": 4,
+      "title": "Pitch calibration (known moment, not just total lift)",
+      "actions": [
+        "Apply known masses at KNOWN fore/aft offsets from the cell midpoint so you impose a known moment M = F * offset, not just total lift.",
+        "Record (liftA - liftB) for each and confirm Pitch = (a-b)*(SPACING_M/2) matches the applied M (this validates the /2 midpoint convention).",
+        "Press ONLY the front of the plate and confirm Pitch goes POSITIVE (nose-up convention); fix wiring/sign if not.",
+        "Store the pitch scale/offset and the verified sign."
+      ]
+    },
+    {
+      "n": 5,
+      "title": "Drag calibration (system response, horizontal, at the drag-load height)",
+      "actions": [
+        "Tie a string to the moving plate/sting at the RECORDED drag-load height (the S-cell axis line).",
+        "Route over a low-friction pulley aligned EXACTLY with the drag axis so the pull is horizontal; F_D = m*9.81.",
+        "Hang >=5 known masses across range; record the drag channel; fit F_D = a_D*R_D + b_D.",
+        "Keep the string perfectly horizontal/aligned -- any angle biases the slope. Expect COARSE resolution (200 kg cell barely flexes): note the counts/N; if it is within a few counts of noise, swap to a 5-10 kg cell -- this is required for usable C_D, not optional."
+      ]
+    },
+    {
+      "n": 6,
+      "title": "Cross-axis check + 2x2 correction matrix",
+      "actions": [
+        "Apply a PURE vertical load; record BOTH lift and drag channels.",
+        "Apply a PURE horizontal load; record BOTH lift and drag channels.",
+        "Form measured = M_meas, true = [F_lift; F_drag]. With pure-lift load (F_drag_true=0) the drag reading gives the lift->drag leak; pure-drag load gives the drag->lift leak. Build M = [[a11,a12],[a21,a22]] where column 1 = response to unit true lift, column 2 = response to unit true drag.",
+        "Invert: [F_lift_true; F_drag_true] = M^-1 * [lift_meas; drag_meas]. Compute M^-1 offline and store its 4 numbers.",
+        "Apply M^-1 to every (lift, drag) reading before computing coefficients (add a 2x2 multiply in your post-processing or in the sketch). If coupling is tiny (off-diagonals near noise), you may skip it -- but measure first."
+      ]
+    },
+    {
+      "n": 7,
+      "title": "Wind-on run with tare subtraction, logging, and coefficients",
+      "actions": [
+        "Set AoA (chord-datum zero); with the tunnel OFF record the tunnel-off tare for all channels.",
+        "Turn the tunnel on, wait for flow + readings to stabilize.",
+        "Capture the serial CSV to a file (CoolTerm / PuTTY logging / a pyserial script) and average over 5-15 s; MEDIAN-filter to reject HX711 desync spikes, then mean.",
+        "Subtract the tunnel-off tare, apply slopes + the M^-1 cross-axis matrix.",
+        "Use q from the pitot (q = 0.5*rho*V^2, read directly as differential pressure) to compute C_L = Lift/(q*S) and C_D = Drag/(q*S), S = 0.744 m^2.",
+        "Save BOTH raw ADC counts and processed forces/coefficients for every point."
+      ]
+    }
+  ],
+  "pitfalls": [
+    "Bolting BOTH ends of a TAL220 flat to the same surface -- it clamps the bar rigid so it reads ~zero. Anchor ONLY one end (chosen by the cell's arrow) on standoffs; leave the other end cantilevered in air with a clear flex gap under the whole bar.",
+    "Orienting the cantilever by HOLE SIZE instead of the printed LOAD-DIRECTION ARROW. M5=anchor/M4=plate is just a build convention; the arrow decides which end is fixed. A reversed cantilever inverts the sign AND side-loads the gauge -- so before flipping bridge polarity to fix a wrong sign, confirm the cell isn't simply mounted backwards.",
+    "Forgetting the horizontal-compliance element -- a plate bolted rigidly to two vertical cantilevers CANNOT translate fore-aft, so drag never reaches the S-cell. Add a mini linear guide or flexure blades: stiff vertically, free in the drag axis.",
+    "Mounting the drag S-cell axis ABOVE or BELOW the drag line of action -- the offset turns drag into a moment the TAL220s read as false lift/pitch. Put both rod-end ball centers collinear with the sting's drag-load height.",
+    "Putting any sensor or bracket (other than the pitot, kept upstream/clear) in the airflow -- only the thin sting + aircraft should see wind; cells and electronics live under the floor.",
+    "Letting a cable carry mechanical load -- a wire pulling on the moving plate adds phantom force. Clamp all cable to the FIXED frame with slack service loops.",
+    "Hard stops in only ONE direction -- the cantilevers can also be overloaded UPWARD (negative-lift gusts) and the S-cell side-loaded. Use bidirectional stops (up, down, and drag axis) set to ~1.5x max working deflection, engaging before any cell exceeds its rating.",
+    "Calibrating the bare cell on the bench -- the assembled frame adds friction/alignment/cross-coupling the factory cert can't capture. Always calibrate the fully assembled structure, and feed lift masses through the sting/load point (and pitch masses at known offsets), not random plate spots.",
+    "Using the 200 kg drag cell to read ~5-15 N -- under 1% FS gives only a handful of usable counts. Maximize gain (Channel A 128 is already max), average AND median-filter; if drag counts/N is within a few counts of noise, swapping to a 5-10 kg cell is mandatory for usable C_D.",
+    "Moving plate touching the base or fixed ends -- any contact lets force bypass the cells. Keep it floating on the two free ends (via the compliance element) only.",
+    "Crossing the DT lines between HX711 boards -- channels then read each other. Keep each board's DT (and, as wired, its SCK) separate; only 5V and GND are shared.",
+    "Treating RATE as software -- the HX711 has no rate register. RATE must be a physical wire to VCC for 80 SPS; the sketch cannot set it.",
+    "Sting rubbing the floor slot at some alpha -- that contact reads as fake aero load. Cut the slot generously (sting sweep + margin) and verify clearance across the full alpha range.",
+    "Mounting the foam glider to bare foam -- it wobbles and adds vibration. Epoxy a backing plate tied into the main spar and bolt the sting to that.",
+    "Undefined alpha=0 or unanchored pitch sign -- level the wing chord (stated datum) and zero the inclinometer there, and verify a front-of-plate push drives pitch positive so C_m and alpha are comparable.",
+    "Mismatching the pitch arm and label -- this build uses (liftA-liftB)*(SPACING_M/2) as the TRUE moment about the midpoint; if you instead use full spacing, document it so C_m isn't off by 2x.",
+    "HX711 desync spikes skewing a mean -- one missed clock pulse throws a huge value; median-filter (not just average), especially on the low-resolution drag channel, and guard reads with noInterrupts() if desyncs persist.",
+    "Skipping serial-to-file logging -- the Serial Monitor alone won't average 5-15 s cleanly; capture CSV with CoolTerm/PuTTY/pyserial and compute the mean offline."
+  ]
+}
