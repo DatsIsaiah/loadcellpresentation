@@ -20,6 +20,10 @@ import {
   SkipBack,
   SkipForward,
   Timer,
+  Cpu,
+  Phone,
+  Settings,
+  Wind,
   Wrench,
   XCircle,
 } from 'lucide-react';
@@ -30,6 +34,9 @@ import sparkfunTal220Img from './assets/sparkfun-tal220-10kg-bar.jpg';
 import sparkfunTas501Img from './assets/sparkfun-tas501-200kg-stype.jpg';
 import threeCellLayoutImg from './assets/three-cell-layout.png';
 import upennForceBalanceImg from './assets/upenn-force-balance-reference.png';
+import nasaTunnelImg from './assets/nasa-ames-11x11-ea18g.jpg';
+import nasaBalanceImg from './assets/nasa-ames-balance-sting.jpg';
+import nasa9x7Img from './assets/nasa-ames-9x7-swt.jpg';
 import buildGuide from './buildGuide.json';
 import sourcesData from './sources.json';
 import './styles.css';
@@ -49,6 +56,8 @@ const slides = [
   { id: 'build-guide', title: 'Build It Yourself, Step by Step' },
   { id: 'mounting', title: 'How It Mounts and Stands in the Tunnel' },
   { id: 'plan', title: 'Build Plan, Time, and Cost' },
+  { id: 'nasa', title: 'NASA Ames: Where the Real Test Happens' },
+  { id: 'nasa-mount', title: 'Mounting on a NASA Balance' },
   { id: 'sources', title: 'Sources & References' },
 ];
 
@@ -304,6 +313,8 @@ function SlideBody({ slide }) {
   if (slide.id === 'bridge') return <BridgeSlide />;
   if (slide.id === 'build') return <BuildSetupSlide />;
   if (slide.id === 'mounting') return <MountingSlide />;
+  if (slide.id === 'nasa') return <NasaAmesSlide />;
+  if (slide.id === 'nasa-mount') return <NasaMountSlide />;
   if (slide.id === 'connections') return <ConnectionMapSlide />;
   if (slide.id === 'sourcing') return <MakeBuySlide />;
   if (slide.id === 'wiring') return <WiringSlide />;
@@ -1630,6 +1641,251 @@ function PlanSlide() {
 
 // Final references page: the verified verdict + the real, categorised sources
 // every fact in the deck traces back to (from the fact-check workflow).
+const nasaProvides = [
+  { icon: Wind, title: '11×11 Transonic (TWT)', detail: 'Mach 0.20–1.40, Re 0.3–9.6M/ft, slotted-wall section' },
+  { icon: Wind, title: '9×7 Supersonic (SWT)', detail: 'Mach 1.55–2.50, sliding-block nozzle sets the Mach' },
+  { icon: Gauge, title: 'Internal 6-axis balance', detail: 'Strain-gauge force/moment balance inside the model, on a sting', hero: true },
+  { icon: Ruler, title: 'Angle-of-attack sensors', detail: 'QFlex accelerometers ~0.005°, knuckle-sleeve encoders ~0.05°' },
+  { icon: Cpu, title: 'ARC data system', detail: 'Base/cavity, stream-angle, buoyancy + TWICS wall corrections' },
+  { icon: Settings, title: 'Model Prep Room (MPR)', detail: 'Off-line assembly, instrumentation, leveling, check-loading' },
+];
+
+const nasaBalancePoints = [
+  'Reads all 6 at once — normal, axial & side force + pitch, roll, yaw',
+  "Lives inside the model: a “metric” shell bolts to the model, a “non-metric” core to the sting",
+  'Flexures carry strain gauges in Wheatstone bridges; bridge voltage ∝ load',
+  "Calibrated to known dead-weight loads (NASA's BALFIT); ~0.3% of full-scale",
+];
+
+const nasaWeBring = [
+  { title: 'Model + drawings, scale & blockage', detail: 'Fox 3000mm geometry scaled to fit the section with low blockage' },
+  { title: 'Expected aero loads', detail: 'Estimated lift, drag & pitching moment to size the balance' },
+  { title: 'Balance selection', detail: 'Capacity, accuracy, backup, balance-to-body & -to-sting specs' },
+  { title: 'Model instrumentation plan', detail: 'Sensors, our nomenclature + output file format (.csv/.dat)' },
+  { title: 'Run matrix', detail: 'Mach & Reynolds range plus alpha sweeps or move-pause' },
+  { title: 'Stress report', detail: 'We feed geometry + loads; a structures engineer signs it' },
+];
+
+const nasaReminders = [
+  {
+    title: 'Scale the Fox to fit the section',
+    note: "Your 3 m-span Fox 3000mm gets scaled down to fit the test section with low blockage and stay within the balance's load limit — exactly the sizing estimate to bring to your grad student.",
+  },
+  {
+    title: 'NASA brings its own calibrated balance',
+    note: 'They supply and calibrate the internal balance, so your TAL220 / S-beam / HX711 rig is the bench version that proves you understand strain-gauge force measurement before scaling up.',
+  },
+];
+
+function NasaAmesSlide() {
+  return (
+    <SlideShell title="NASA Ames Research Center" kicker="Wind tunnels and force balances">
+      <div className="nasa-layout">
+        <section className="nasa-col">
+          <h2 className="nasa-h">What NASA provides</h2>
+          <figure className="nasa-twin">
+            <img src={nasaTunnelImg} alt="EA-18G model on the sting in the Ames 11x11 Transonic Wind Tunnel" />
+            <img src={nasa9x7Img} alt="The Ames 9x7-foot Supersonic Wind Tunnel test section" />
+            <figcaption>Ames Unitary Plan: 11×11 transonic + 9×7 supersonic <span>NASA</span></figcaption>
+          </figure>
+          <ul className="nasa-cards">
+            {nasaProvides.map((p) => (
+              <li key={p.title} className={`nasa-card${p.hero ? ' is-hero' : ''}`}>
+                <p.icon size={15} />
+                <div>
+                  <strong>{p.title}</strong>
+                  <span>{p.detail}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="nasa-col nasa-hero">
+          <div className="nasa-hero-tag">
+            <Gauge size={14} /> The force balance &mdash; heart of the test
+          </div>
+          <figure className="nasa-balance-photo">
+            <img src={nasaBalanceImg} alt="Internal strain-gauge force and moment balance on a sting at NASA Ames" />
+            <figcaption>Internal strain-gauge balance on a sting <span>NASA</span></figcaption>
+          </figure>
+          <p className="nasa-hero-head">
+            One machined block reads <strong>all six</strong> force &amp; moment components at once.
+          </p>
+          <ul className="nasa-hero-points">
+            {nasaBalancePoints.map((pt) => (
+              <li key={pt}>{pt}</li>
+            ))}
+          </ul>
+          <p className="nasa-hero-tie">
+            <strong>Tie to your rig:</strong> it&apos;s a 6-axis version of your bench setup &mdash; same
+            strain-gauge-in-a-Wheatstone-bridge idea as your TAL220 bars, S-beam &amp; HX711, just all six channels
+            in one block.
+          </p>
+        </section>
+
+        <section className="nasa-col">
+          <h2 className="nasa-h">
+            What we bring <span className="nasa-lane">(your lane)</span>
+          </h2>
+          <ul className="nasa-bring">
+            {nasaWeBring.map((w) => (
+              <li key={w.title}>
+                <strong>{w.title}</strong>
+                <span>{w.detail}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="nasa-reminders">
+            {nasaReminders.map((r) => (
+              <article key={r.title} className="nasa-rem">
+                <strong>{r.title}</strong>
+                <p>{r.note}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="nasa-foot">
+        <span className="nasa-more">
+          <strong>Also on tap:</strong> imaging diagnostics &mdash; shadowgraph, IR thermography, optical model
+          attitude, PSP/PIV &mdash; plus a NASA Test Manager and stress-report review.
+        </span>
+        <span className="nasa-contact">
+          <Phone size={13} /> Maureen Delgado, Wind Tunnel Division Chief &middot; (650) 604-1620
+          <em>advisor + professor handle setup, scheduling & funding</em>
+        </span>
+      </div>
+    </SlideShell>
+  );
+}
+
+const nmSays = [
+  {
+    key: true,
+    text: 'For a test in an Ames wind tunnel, the balance comes as part of the test — we specify it in the test request, and NASA’s Test Manager and Balance Calibration Lab select, calibrate, and install it on our model. We don’t build the load cells.',
+    src: 'Ames Wind Tunnel — Test Planning',
+    url: 'https://www.nasa.gov/nasa-ames-unitary-plan-wind-tunnel/nasa-ames-wind-tunnel-test-request-form-and-test-planning-information/',
+  },
+  {
+    text: 'Their balance reads all three forces and three moments at once, so we get lift, drag, and pitch from one unit. It mounts inside the model on a sting — our external load-cell rig is the same idea, scaled down.',
+    src: 'NASA Ames — Balance Basics',
+    url: 'https://www.nasa.gov/ames-balance-calibration-laboratory/nasa-ames-balance-basics/',
+  },
+  {
+    text: 'Separately, NASA can loan a balance out for U.S.-Government tests run elsewhere — their “Borrowing a NASA Ames Balance (Outside Ames)” program, where the borrower signs for it and takes financial responsibility. That is not our case if we test in their tunnel.',
+    src: 'Balance Cal Lab — Submitting a Request',
+    url: 'https://www.nasa.gov/ames-balance-calibration-laboratory/nasa-ames-balance-calibration-laboratory-requests/nasa-ames-balance-calibration-laboratory-submitting-request/',
+  },
+  {
+    text: 'Either way, NASA calibrates the balance and reduces the data with their own BALFIT software (AIAA Recommended Practice R-091-2003).',
+    src: 'Balance Cal Lab — Capabilities',
+    url: 'https://www.nasa.gov/ames-balance-calibration-laboratory/nasa-ames-balance-calibration-laboratory-capabilities/',
+  },
+];
+
+const nmPick = [
+  { b: 'Mk20A (0.75 in)', nf: '50', af: '50', pm: '51' },
+  { b: 'Mk33A / Mk41A', nf: '200', af: '20–60', pm: '300' },
+  { b: 'Mk29A', nf: '400', af: '30–100', pm: '600' },
+];
+
+const nmSteps = [
+  'Send NASA the scaled model, drawings, expected loads, and run matrix.',
+  'NASA selects, calibrates, and installs a balance that brackets our loads.',
+  'Model is mounted on the balance / sting; a check-load verifies it before runs.',
+  'Tunnel runs the Mach / angle-of-attack matrix; the balance reads all six components.',
+  'Data system resolves body → wind axes and applies wind-tunnel corrections.',
+  'Output: lift, drag, and pitching-moment data files.',
+];
+
+const nmMore = [
+  { label: 'Dudley, NASA TM-86693 (1985) — external load cells', url: 'https://ntrs.nasa.gov/citations/19870019113' },
+  { label: '11×11 transonic test section', url: 'https://www.nasa.gov/nasa-ames-unitary-plan-wind-tunnel/ames-unitary-plan-wind-tunnel-11-by-11-foot-twt-test-section/' },
+  { label: '9×7 supersonic test section', url: 'https://www.nasa.gov/nasa-ames-unitary-plan-wind-tunnel/ames-unitary-plan-wind-tunnel-9-by-7-foot-swt-test-section/' },
+];
+
+function NasaMountSlide() {
+  return (
+    <SlideShell
+      title="Mounting on a NASA Balance"
+      kicker="What's provided, and how we'd use it to get lift / drag / pitch"
+    >
+      <div className="nm-layout">
+        <div className="nm-verdict">
+          <CheckCircle2 size={18} />
+          <p>
+            Yes — for a test in an Ames wind tunnel, NASA provides, calibrates, and installs the force balance as
+            part of the test. We supply the scaled model, not the load cells.
+          </p>
+        </div>
+
+        <div className="nm-grid">
+          <section className="nm-col">
+            <h2 className="nm-h">What NASA Ames says</h2>
+            <div className="nm-says">
+              {nmSays.map((s) => (
+                <div key={s.url} className={`nm-say${s.key ? ' is-key' : ''}`}>
+                  <p>{s.text}</p>
+                  <a href={s.url} target="_blank" rel="noreferrer">
+                    — {s.src}
+                  </a>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="nm-col">
+            <h2 className="nm-h">How we&apos;d use it</h2>
+            <ol className="nm-steps">
+              {nmSteps.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ol>
+            <div className="nm-pick">
+              <h3>Which balance to ask for</h3>
+              <p>
+                Match our expected loads to the smallest balance that brackets them (~50–80% of full-scale). A
+                scaled glider lands in the 0.75-inch class:
+              </p>
+              <table className="nm-pick-table">
+                <thead>
+                  <tr>
+                    <th>Balance</th>
+                    <th>NF · lift (lb)</th>
+                    <th>AF · drag (lb)</th>
+                    <th>PM · pitch (in-lb)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nmPick.map((r) => (
+                    <tr key={r.b}>
+                      <td>{r.b}</td>
+                      <td>{r.nf}</td>
+                      <td>{r.af}</td>
+                      <td>{r.pm}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div className="nm-cites">
+          <strong>More sources:</strong>
+          {nmMore.map((c) => (
+            <a key={c.url} href={c.url} target="_blank" rel="noreferrer">
+              {c.label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
 function SourcesSlide() {
   const categories = [
     'Balance & aerodynamics',
@@ -1640,18 +1896,7 @@ function SourcesSlide() {
   ];
   return (
     <SlideShell title="Sources & References" kicker="Where this all comes from">
-      <div className="sources-layout">
-        <aside className="sources-verdict">
-          <div className="sv-badge">
-            <ShieldCheck size={15} /> Fact-checked vs. the sources
-          </div>
-          <p>{sourcesData.summaryShort || sourcesData.summary}</p>
-          <ul className="sv-corrections">
-            {sourcesData.corrections.map((c, i) => (
-              <li key={i}>{c}</li>
-            ))}
-          </ul>
-        </aside>
+      <div className="sources-layout solo">
         <div className="sources-grid">
           {categories.map((cat) => {
             const items = sourcesData.sources.filter((s) => s.category === cat);
@@ -1800,73 +2045,13 @@ function MountingSlide() {
     <SlideShell title="How It Mounts in the Tunnel" kicker="The real install">
       <div className="mounting-layout">
         <figure className="xsection">
-          <svg viewBox="0 0 720 460" role="img" aria-label="Cross-section of the balance mounted under the wind tunnel">
-            <rect x="0" y="410" width="720" height="50" fill="#eef4f8" />
-            <g stroke="#aebac4" strokeWidth="2">
-              {Array.from({ length: 19 }).map((_, i) => (
-                <line key={i} x1={18 + i * 38} y1="460" x2={42 + i * 38} y2="410" />
-              ))}
-            </g>
-            <line x1="0" y1="410" x2="720" y2="410" stroke="#42566a" strokeWidth="3" />
-
-            <rect x="120" y="44" width="470" height="150" fill="#eaf6fb" stroke="#9bc8e2" strokeWidth="2" />
-            <line x1="120" y1="44" x2="120" y2="194" stroke="#9bc8e2" strokeWidth="2" strokeDasharray="6 6" />
-            <line x1="590" y1="44" x2="590" y2="194" stroke="#9bc8e2" strokeWidth="2" strokeDasharray="6 6" />
-            <g>
-              <line x1="142" y1="90" x2="250" y2="90" stroke="#1678bd" strokeWidth="4" />
-              <path d="M252 90 l-15 -8 v16 z" fill="#1678bd" />
-            </g>
-            <text x="150" y="78" fontSize="13" fontWeight="800" fill="#1678bd">airflow</text>
-
-            <line x1="60" y1="194" x2="336" y2="194" stroke="#42566a" strokeWidth="5" />
-            <line x1="384" y1="194" x2="660" y2="194" stroke="#42566a" strokeWidth="5" />
-            <text x="652" y="186" fontSize="12" fontWeight="800" fill="#5e7184" textAnchor="end">tunnel floor</text>
-            <text x="318" y="214" fontSize="11" fontWeight="800" fill="#5e7184" textAnchor="middle">slot</text>
-
-            <g>
-              <rect x="300" y="108" width="120" height="16" rx="8" fill="#ffffff" stroke="#42566a" strokeWidth="2" />
-              <polygon points="300,108 300,124 280,116" fill="#e78a32" />
-              <polygon points="414,108 430,108 426,90" fill="#ffffff" stroke="#42566a" strokeWidth="1.5" />
-            </g>
-            <text x="436" y="100" fontSize="12.5" fontWeight="800" fill="#122235">model</text>
-
-            <rect x="354" y="122" width="12" height="176" fill="#2b333b" />
-            <text x="374" y="256" fontSize="12.5" fontWeight="800" fill="#122235">sting</text>
-
-            <rect x="250" y="296" width="220" height="14" rx="3" fill="#9fd6ef" stroke="#5aa9cf" strokeWidth="1.5" />
-            <text x="250" y="288" fontSize="12.5" fontWeight="800" fill="#1678bd">moving plate</text>
-
-            {[300, 420].map((cx) => (
-              <g key={cx} fill="#c9ccd1" stroke="#8a98a4" strokeWidth="1.5">
-                <rect x={cx - 6} y="310" width="12" height="14" />
-                <rect x={cx - 30} y="324" width="60" height="12" rx="3" />
-                <rect x={cx + 18} y="336" width="14" height="16" />
-              </g>
-            ))}
-            <text x="360" y="344" fontSize="12" fontWeight="800" fill="#1678bd" textAnchor="middle">2 lift cells</text>
-
-            <rect x="476" y="318" width="48" height="16" rx="3" fill="#c9ccd1" stroke="#8a98a4" strokeWidth="1.5" />
-            <text x="500" y="310" fontSize="11.5" fontWeight="800" fill="#c63d4a" textAnchor="middle">drag cell</text>
-
-            <rect x="232" y="350" width="300" height="16" rx="3" fill="#42566a" />
-            <text x="232" y="392" fontSize="12.5" fontWeight="800" fill="#122235">rigid base — bolted down</text>
-            <line x1="252" y1="366" x2="252" y2="410" stroke="#42566a" strokeWidth="6" />
-            <line x1="512" y1="366" x2="512" y2="410" stroke="#42566a" strokeWidth="6" />
-            <g fill="#122235">
-              <circle cx="252" cy="396" r="4" />
-              <circle cx="512" cy="396" r="4" />
-            </g>
-
-            <rect x="556" y="316" width="120" height="40" rx="6" fill="#d71920" />
-            <text x="616" y="341" fontSize="12.5" fontWeight="800" fill="#ffffff" textAnchor="middle">3x HX711</text>
-            <text x="616" y="376" fontSize="11.5" fontWeight="800" fill="#122235" textAnchor="middle">to Arduino</text>
-          </svg>
+          <svg viewBox="0 0 720 460" role="img" aria-label="Cross-section of a wind-tunnel force balance. A model with an orange nose sits in the test section in the airflow; a thin sting passes down through a slot in the tunnel floor to a moving plate hung below the floor. Two straight-bar load cells act as lift and pitch cantilevers, each bolted DOWN to a spacer on the rigid base at its fixed end and risered UP to the moving plate at its free end, with an open flex gap under the free end. A horizontal S-beam drag load cell on rod-end bearings links a tab on the moving plate to a fixed frame post that butt-joints onto the base, so it sees pure axial drag load. The moving plate rides on a fore/aft compliance slide so drag reaches the S-beam. Each cell wires below the base to its own HX711 amplifier, then to an Arduino under the floor."><defs><pattern id="floorHatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="#C7CDD4" strokeWidth="2" /></pattern><pattern id="postHatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#7E94A8" strokeWidth="1.3" /></pattern><linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#5D7388" /><stop offset="6%" stopColor="#52657A" /><stop offset="100%" stopColor="#3A4A5B" /></linearGradient><linearGradient id="lightBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#F2F5F8" /><stop offset="100%" stopColor="#DDE3E9" /></linearGradient><linearGradient id="plateFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7FC2EC" /><stop offset="100%" stopColor="#4FA3DC" /></linearGradient><linearGradient id="noseFill" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#F0AE1F" /><stop offset="100%" stopColor="#E69F00" /></linearGradient><filter id="lift" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.6" floodColor="#1E2A36" floodOpacity="0.18" /></filter><filter id="chipLift" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.1" floodColor="#1E2A36" floodOpacity="0.14" /></filter><marker id="airArrow" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 Z" fill="#1678BD" /></marker><marker id="liftArrow" markerWidth="9" markerHeight="9" refX="4.5" refY="2" orient="auto"><path d="M1,8 L4.5,1 L8,8 Z" fill="#1678BD" /></marker><marker id="flexArrowS" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M7,1 L1,4 L7,7 Z" fill="#5E7184" /></marker><marker id="flexArrowE" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M1,1 L7,4 L1,7 Z" fill="#5E7184" /></marker></defs><rect x="0" y="0" width="720" height="460" fill="#FFFFFF" /><g strokeLinejoin="round" strokeLinecap="round"><rect x="206" y="278" width="476" height="140" rx="9" fill="#F4F6F8" stroke="#E2E7EC" strokeWidth="1" /><rect x="120" y="44" width="470" height="150" fill="#EFF6FC" stroke="#CFE6F5" strokeWidth="1.5" rx="6" /><line x1="150" y1="84" x2="252" y2="84" stroke="#1678BD" strokeWidth="3" markerEnd="url(#airArrow)" vectorEffect="non-scaling-stroke" /><text x="160" y="78" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="12" fill="#1678BD" fontWeight="600">airflow</text><rect x="354" y="142" width="12" height="156" fill="url(#steel)" stroke="#33424F" strokeWidth="1" /><line x1="355" y1="143" x2="355" y2="297" stroke="#FFFFFF" strokeWidth="1" opacity="0.4" /><rect x="300" y="108" width="120" height="34" rx="16" fill="#FFFFFF" stroke="#1E2A36" strokeWidth="1.5" filter="url(#lift)" /><line x1="306" y1="110" x2="414" y2="110" stroke="#FFFFFF" strokeWidth="1" opacity="0.6" /><path d="M300,116 Q282,125 300,134 Z" fill="url(#noseFill)" stroke="#CF7A26" strokeWidth="1" /><text x="362" y="129" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="12" fill="#1E2A36" textAnchor="middle">model</text><g filter="url(#chipLift)"><rect x="376" y="222" width="46" height="17" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="383" y="234" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#1E2A36">sting</text><line x1="366" y1="230" x2="376" y2="230" stroke="#8A98A4" strokeWidth="0.75" vectorEffect="non-scaling-stroke" /><circle cx="366" cy="230" r="2.2" fill="#5E7184" /><rect x="60" y="192" width="276" height="6" fill="url(#floorHatch)" stroke="#8A98A4" strokeWidth="1" /><rect x="384" y="192" width="276" height="6" fill="url(#floorHatch)" stroke="#8A98A4" strokeWidth="1" /><line x1="60" y1="198" x2="336" y2="198" stroke="#8A98A4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /><line x1="384" y1="198" x2="660" y2="198" stroke="#8A98A4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" /><g filter="url(#chipLift)"><rect x="126" y="206" width="86" height="17" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="134" y="218" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#5E7184">tunnel floor</text><rect x="336" y="180" width="6" height="18" fill="#F7E3E5" /><rect x="378" y="180" width="6" height="18" fill="#F7E3E5" /><g><rect x="246" y="356" width="180" height="8" rx="3" fill="url(#lightBody)" stroke="#7E94A8" strokeWidth="1" /><rect x="262" y="358" width="22" height="4" rx="1" fill="#C7CDD4" stroke="#7E94A8" strokeWidth="0.75" /><rect x="312" y="358" width="22" height="4" rx="1" fill="#C7CDD4" stroke="#7E94A8" strokeWidth="0.75" /><rect x="362" y="358" width="22" height="4" rx="1" fill="#C7CDD4" stroke="#7E94A8" strokeWidth="0.75" /><line x1="252" y1="354" x2="420" y2="354" stroke="#5E7184" strokeWidth="0.75" strokeDasharray="3 3" markerStart="url(#flexArrowS)" markerEnd="url(#flexArrowE)" vectorEffect="non-scaling-stroke" /></g><g><rect x="250" y="298" width="220" height="14" rx="3" fill="url(#plateFill)" stroke="#1678BD" strokeWidth="1.5" filter="url(#lift)" /><line x1="252" y1="300" x2="468" y2="300" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" /><text x="296" y="308" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#FFFFFF" textAnchor="middle" fontWeight="600">moving plate</text><rect x="328" y="288" width="64" height="10" rx="2" fill="#3F8FCB" stroke="#1678BD" strokeWidth="1" /><circle cx="344" cy="293" r="2.2" fill="#1E2A36" /><circle cx="376" cy="293" r="2.2" fill="#1E2A36" /><path d="M470,304 L484,304 L484,328 L470,328 Z" fill="url(#plateFill)" stroke="#1678BD" strokeWidth="1.5" /></g><g><rect x="258" y="334" width="92" height="11" rx="3" fill="url(#lightBody)" stroke="#1E2A36" strokeWidth="1" filter="url(#lift)" /><line x1="260" y1="335.5" x2="348" y2="335.5" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" /><rect x="316" y="345" width="20" height="9" fill="url(#lightBody)" stroke="#7E94A8" strokeWidth="1" /><rect x="312" y="354" width="28" height="6" fill="url(#steel)" /><circle cx="326" cy="339" r="2.6" fill="#1E2A36" /><rect x="268" y="312" width="10" height="22" fill="url(#lightBody)" stroke="#7E94A8" strokeWidth="1" /><circle cx="273" cy="339" r="2.6" fill="#1E2A36" /><line x1="273" y1="345" x2="273" y2="356" stroke="#5E7184" strokeWidth="1" markerStart="url(#flexArrowS)" markerEnd="url(#flexArrowE)" vectorEffect="non-scaling-stroke" /></g><g><rect x="372" y="334" width="92" height="11" rx="3" fill="url(#lightBody)" stroke="#1E2A36" strokeWidth="1" filter="url(#lift)" /><line x1="374" y1="335.5" x2="462" y2="335.5" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" /><rect x="378" y="345" width="20" height="9" fill="url(#lightBody)" stroke="#7E94A8" strokeWidth="1" /><rect x="374" y="354" width="28" height="6" fill="url(#steel)" /><circle cx="388" cy="339" r="2.6" fill="#1E2A36" /><rect x="436" y="312" width="10" height="22" fill="url(#lightBody)" stroke="#7E94A8" strokeWidth="1" /><circle cx="441" cy="339" r="2.6" fill="#1E2A36" /><line x1="441" y1="345" x2="441" y2="356" stroke="#5E7184" strokeWidth="1" markerStart="url(#flexArrowS)" markerEnd="url(#flexArrowE)" vectorEffect="non-scaling-stroke" /><line x1="430" y1="338" x2="408" y2="338" stroke="#7657C6" strokeWidth="2" vectorEffect="non-scaling-stroke" /></g><g><rect x="600" y="312" width="14" height="48" fill="url(#postHatch)" stroke="#1E2A36" strokeWidth="1.5" /><rect x="600" y="312" width="14" height="48" fill="none" stroke="#1E2A36" strokeWidth="1.5" /></g><g><line x1="484" y1="320" x2="600" y2="320" stroke="#c63d4a" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" /><line x1="486" y1="320" x2="497" y2="320" stroke="#42566A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /><circle cx="501" cy="320" r="7" fill="#FFFFFF" stroke="#42566A" strokeWidth="3" /><circle cx="501" cy="320" r="3.4" fill="#42566A" /><circle cx="501" cy="320" r="2" fill="#1E2A36" /><line x1="508" y1="320" x2="519" y2="320" stroke="#42566A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /><rect x="519" y="314" width="16" height="12" fill="url(#lightBody)" stroke="#8A98A4" strokeWidth="1" /><line x1="524" y1="314" x2="524" y2="326" stroke="#8A98A4" strokeWidth="0.75" /><line x1="529" y1="314" x2="529" y2="326" stroke="#8A98A4" strokeWidth="0.75" /><rect x="535" y="306" width="52" height="9" fill="#EAEEF2" stroke="#8A98A4" strokeWidth="1.5" /><rect x="535" y="325" width="52" height="9" fill="#EAEEF2" stroke="#8A98A4" strokeWidth="1.5" /><path d="M545,315 L577,315 L567,325 L535,325 Z" fill="#EAEEF2" stroke="#8A98A4" strokeWidth="1.5" /><rect x="569" y="315" width="18" height="7" fill="#FFFFFF" stroke="#8A98A4" strokeWidth="1" /><rect x="535" y="318" width="18" height="7" fill="#FFFFFF" stroke="#8A98A4" strokeWidth="1" /><rect x="587" y="314" width="16" height="12" fill="url(#lightBody)" stroke="#8A98A4" strokeWidth="1" /><line x1="592" y1="314" x2="592" y2="326" stroke="#8A98A4" strokeWidth="0.75" /><line x1="597" y1="314" x2="597" y2="326" stroke="#8A98A4" strokeWidth="0.75" /><line x1="603" y1="320" x2="600" y2="320" stroke="#42566A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /><circle cx="607" cy="320" r="7" fill="#FFFFFF" stroke="#42566A" strokeWidth="3" /><circle cx="607" cy="320" r="3.4" fill="#42566A" /><circle cx="607" cy="320" r="2" fill="#1E2A36" /></g><g><rect x="232" y="360" width="382" height="14" rx="3" fill="url(#steel)" stroke="#33424F" strokeWidth="1.5" filter="url(#lift)" /><line x1="234" y1="361.5" x2="612" y2="361.5" stroke="#FFFFFF" strokeWidth="1" opacity="0.4" /><text x="382" y="371" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#FFFFFF" textAnchor="middle" fontWeight="600">rigid base — bolted down</text><rect x="252" y="374" width="14" height="24" fill="url(#steel)" /><rect x="498" y="374" width="14" height="24" fill="url(#steel)" /><circle cx="259" cy="404" r="3" fill="#1E2A36" /><circle cx="505" cy="404" r="3" fill="#1E2A36" /></g><line x1="60" y1="410" x2="660" y2="410" stroke="#8A98A4" strokeWidth="2" vectorEffect="non-scaling-stroke" /><rect x="60" y="410" width="600" height="10" fill="url(#floorHatch)" opacity="0.6" /><g><path d="M326,360 C326,400 300,404 286,410 L286,414" fill="none" stroke="#7657C6" strokeWidth="1.1" opacity="0.75" /><path d="M388,360 C388,398 360,404 348,410 L348,414" fill="none" stroke="#1678BD" strokeWidth="1.1" opacity="0.75" /><path d="M607,360 C607,394 600,400 600,414" fill="none" stroke="#c63d4a" strokeWidth="1.1" opacity="0.75" /><path d="M286,416 L596,416" fill="none" stroke="#5E7184" strokeWidth="1.1" opacity="0.6" /><path d="M596,416 C606,416 612,400 618,394" fill="none" stroke="#c63d4a" strokeWidth="1.1" opacity="0.75" /></g><g><rect x="566" y="386" width="68" height="58" rx="4" fill="#F7E3E5" stroke="#c63d4a" strokeWidth="1.5" filter="url(#lift)" /><line x1="566" y1="405" x2="634" y2="405" stroke="#E7BCC1" strokeWidth="1" /><line x1="566" y1="424" x2="634" y2="424" stroke="#E7BCC1" strokeWidth="1" /><text x="600" y="382" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#c63d4a" textAnchor="middle" fontWeight="600">3× HX711</text><line x1="634" y1="415" x2="668" y2="415" stroke="#5E7184" strokeWidth="1.4" vectorEffect="non-scaling-stroke" /><circle cx="634" cy="415" r="2.2" fill="#5E7184" /><text x="640" y="410" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#5E7184">to Arduino</text></g><g filter="url(#chipLift)"><rect x="252" y="382" width="178" height="17" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="260" y="394" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#1E2A36">2 lift / pitch cells (cantilevers)</text><line x1="312" y1="382" x2="312" y2="362" stroke="#8A98A4" strokeWidth="0.75" vectorEffect="non-scaling-stroke" /><line x1="408" y1="382" x2="408" y2="362" stroke="#8A98A4" strokeWidth="0.75" vectorEffect="non-scaling-stroke" /><circle cx="312" cy="362" r="2.2" fill="#5E7184" /><circle cx="408" cy="362" r="2.2" fill="#5E7184" /><g filter="url(#chipLift)"><rect x="498" y="334" width="116" height="16" rx="4" fill="#FFFFFF" stroke="#c63d4a" strokeWidth="1" /></g><text x="504" y="345" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="11" fill="#c63d4a" fontWeight="600">drag cell (S-beam)</text><line x1="556" y1="334" x2="556" y2="326" stroke="#c63d4a" strokeWidth="0.75" vectorEffect="non-scaling-stroke" /><circle cx="556" cy="326" r="2.2" fill="#c63d4a" /><g filter="url(#chipLift)"><rect x="60" y="424" width="312" height="30" rx="5" fill="#FFFFFF" stroke="#E2E7EC" strokeWidth="1" /></g><rect x="68" y="435" width="11" height="11" rx="2" fill="#56B4E9" stroke="#1678BD" strokeWidth="1" /><text x="84" y="444" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#5E7184">force in / lift</text><rect x="170" y="435" width="11" height="11" rx="2" fill="#7657C6" /><text x="186" y="444" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#5E7184">pitch</text><rect x="232" y="435" width="11" height="11" rx="2" fill="#c63d4a" /><text x="248" y="444" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#5E7184">measured load path / drag</text></g></svg>
           <figcaption>Only the model and the thin sting sit in the airflow. Everything that measures is below the floor, bolted to a rigid stand.</figcaption>
         </figure>
 
         <div className="mount-aside">
           <article className="mount-detail">
-            <h2>How a cell bolts in</h2>
+            <h2>How a lift cell mounts (bar)</h2>
             <svg viewBox="0 0 300 130" role="img" aria-label="Bar cell mounting detail">
               <rect x="36" y="14" width="228" height="12" rx="2" fill="#9fd6ef" stroke="#5aa9cf" />
               <text x="150" y="11" fontSize="10" fontWeight="800" fill="#1678bd" textAnchor="middle">moving plate</text>
@@ -1883,11 +2068,12 @@ function MountingSlide() {
               <text x="294" y="74" fontSize="10" fontWeight="900" fill="#2a9d5a" textAnchor="end">DOWN</text>
               <text x="150" y="73" fontSize="9.5" fontWeight="800" fill="#c63d4a" textAnchor="middle">flex gap</text>
             </svg>
-            <p>Free end screws <b>up</b> to the plate, fixed end screws <b>down</b> to the base, with spacers so the middle can flex. Bolt both ends flat and it reads nothing.</p>
+            <p>Fixed end <b>down</b> to the base, free end <b>up</b> to the plate, with a flex gap. Bolt both ends flat and it reads nothing.</p>
           </article>
-          <article className="mount-rule">
-            <strong>Standing it up</strong>
-            <p>Build and calibrate on a bench, then bolt the base to the tunnel structure (or a heavy stand) under the floor and level it. Seal the slot loosely — but never let the seal touch the sting.</p>
+          <article className="mount-detail drag">
+            <h2>How the drag cell mounts (S-beam)</h2>
+            <svg viewBox="0 0 300 130" role="img" aria-label="Detail of how the drag cell mounts. A horizontal S-beam load cell has a rod-end (heim) bearing threaded into each end. The left rod-end pins to a tab on the moving plate; the right rod-end pins to a fixed frame post tied to the base. The load axis is horizontal along the drag line, so the cell sees pure axial tension or compression."><defs><pattern id="postHatchD" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#7E94A8" strokeWidth="1" /></pattern><linearGradient id="steelD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#5D7388" /><stop offset="6%" stopColor="#52657A" /><stop offset="100%" stopColor="#3A4A5B" /></linearGradient><linearGradient id="lightBodyD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#F2F5F8" /><stop offset="100%" stopColor="#DDE3E9" /></linearGradient><linearGradient id="plateFillD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7FC2EC" /><stop offset="100%" stopColor="#4FA3DC" /></linearGradient><filter id="liftD" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.4" floodColor="#1E2A36" floodOpacity="0.18" /></filter><filter id="chipLiftD" x="-10%" y="-20%" width="120%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="#1E2A36" floodOpacity="0.14" /></filter></defs><rect x="0" y="0" width="300" height="130" fill="#FFFFFF" /><g strokeLinejoin="round" strokeLinecap="round"><text x="150" y="18" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="12" fontWeight="600" fill="#1E2A36" textAnchor="middle">How the drag cell mounts</text><line x1="40" y1="70" x2="262" y2="70" stroke="#c63d4a" strokeWidth="1" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" /><g filter="url(#chipLiftD)"><rect x="92" y="113" width="116" height="15" rx="4" fill="#FFFFFF" stroke="#E7BCC1" strokeWidth="1" /></g><text x="150" y="124" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#c63d4a" textAnchor="middle" fontWeight="600">load axis = drag line (axial)</text><rect x="28" y="48" width="14" height="44" rx="3" fill="url(#plateFillD)" stroke="#1678BD" strokeWidth="1.5" filter="url(#liftD)" /><line x1="29" y1="49" x2="29" y2="91" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" /><g filter="url(#chipLiftD)"><rect x="20" y="30" width="40" height="15" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="40" y="41" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#1678BD" textAnchor="middle" fontWeight="600">plate</text><path d="M42,70 L48,70" stroke="#42566A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /><circle cx="54" cy="70" r="8" fill="#FFFFFF" stroke="#42566A" strokeWidth="3" /><circle cx="54" cy="70" r="4" fill="#42566A" /><circle cx="54" cy="70" r="2.5" fill="#1E2A36" /><line x1="62" y1="70" x2="74" y2="70" stroke="#42566A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /><rect x="74" y="64" width="20" height="12" fill="url(#lightBodyD)" stroke="#8A98A4" strokeWidth="1" /><line x1="79" y1="64" x2="79" y2="76" stroke="#8A98A4" strokeWidth="0.75" /><line x1="84" y1="64" x2="84" y2="76" stroke="#8A98A4" strokeWidth="0.75" /><line x1="89" y1="64" x2="89" y2="76" stroke="#8A98A4" strokeWidth="0.75" /><rect x="94" y="54" width="52" height="9" fill="#EAEEF2" stroke="#8A98A4" strokeWidth="1.5" /><rect x="94" y="77" width="52" height="9" fill="#EAEEF2" stroke="#8A98A4" strokeWidth="1.5" /><path d="M104,63 L136,63 L126,77 L94,77 Z" fill="#EAEEF2" stroke="#8A98A4" strokeWidth="1.5" /><rect x="128" y="63" width="18" height="7" fill="#FFFFFF" stroke="#8A98A4" strokeWidth="1" /><rect x="94" y="70" width="18" height="7" fill="#FFFFFF" stroke="#8A98A4" strokeWidth="1" /><g filter="url(#chipLiftD)"><rect x="92" y="96" width="60" height="15" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="122" y="107" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#1E2A36" textAnchor="middle">S-beam body</text><rect x="146" y="64" width="20" height="12" fill="url(#lightBodyD)" stroke="#8A98A4" strokeWidth="1" /><line x1="151" y1="64" x2="151" y2="76" stroke="#8A98A4" strokeWidth="0.75" /><line x1="156" y1="64" x2="156" y2="76" stroke="#8A98A4" strokeWidth="0.75" /><line x1="161" y1="64" x2="161" y2="76" stroke="#8A98A4" strokeWidth="0.75" /><line x1="166" y1="70" x2="178" y2="70" stroke="#42566A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /><circle cx="186" cy="70" r="8" fill="#FFFFFF" stroke="#42566A" strokeWidth="3" /><circle cx="186" cy="70" r="4" fill="#42566A" /><circle cx="186" cy="70" r="2.5" fill="#1E2A36" /><line x1="194" y1="70" x2="234" y2="70" stroke="#42566A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /><rect x="234" y="40" width="16" height="60" fill="url(#postHatchD)" stroke="#1E2A36" strokeWidth="1.5" /><rect x="234" y="40" width="16" height="60" fill="none" stroke="#1E2A36" strokeWidth="1.5" /><g filter="url(#chipLiftD)"><rect x="214" y="22" width="62" height="15" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="245" y="33" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#5E7184" textAnchor="middle">fixed post</text><g filter="url(#chipLiftD)"><rect x="40" y="92" width="48" height="15" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="64" y="103" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#42566A" textAnchor="middle">rod-end</text><g filter="url(#chipLiftD)"><rect x="162" y="92" width="48" height="15" rx="4" fill="#FFFFFF" stroke="#D7DEE5" strokeWidth="1" /></g><text x="186" y="103" fontFamily="Inter, Helvetica, Arial, sans-serif" fontSize="10" fill="#42566A" textAnchor="middle">rod-end</text></g></svg>
+            <p>An S-type cell on <b>rod-ends</b> links the moving plate to a fixed post, so it reads pure axial drag - no bending.</p>
           </article>
         </div>
       </div>
