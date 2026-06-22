@@ -1272,10 +1272,11 @@ img {
 
 .cost-table th,
 .cost-table td {
-  padding: 7px 8px;
+  padding: 3px 8px;
   border-bottom: 1px solid #e5eff4;
   text-align: left;
   vertical-align: top;
+  white-space: nowrap;
 }
 
 .plan-layout .step-card {
@@ -2375,4 +2376,104 @@ img {
   font-size: 0.78rem;
   line-height: 1.36;
   color: var(--ink);
+}
+
+
+/* ---- Sources & References slide ---- */
+.sources-layout {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: 18px;
+}
+.sources-verdict {
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.sv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--lift);
+  font-weight: 900;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  width: max-content;
+}
+.sources-verdict p {
+  font-size: 0.82rem;
+  line-height: 1.42;
+  color: var(--steel);
+}
+.sv-corrections {
+  margin: 0;
+  padding-left: 16px;
+  display: grid;
+  gap: 7px;
+}
+.sv-corrections li {
+  font-size: 0.78rem;
+  line-height: 1.34;
+  color: var(--ink);
+}
+.sv-corrections li::marker {
+  color: var(--drag);
+}
+.sources-grid {
+  min-height: 0;
+  overflow-y: auto;
+  column-count: 2;
+  column-gap: 16px;
+  padding-right: 6px;
+}
+.src-group {
+  break-inside: avoid;
+  margin-bottom: 12px;
+}
+.src-group h3 {
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lift);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.src-item {
+  display: grid;
+  gap: 1px;
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: 7px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.src-item:hover {
+  background: #f1f8fc;
+  border-color: var(--line);
+}
+.src-item strong {
+  color: var(--lift);
+  font-size: 0.79rem;
+  font-weight: 800;
+  line-height: 1.22;
+}
+.src-item span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
 }

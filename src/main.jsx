@@ -31,6 +31,7 @@ import sparkfunTas501Img from './assets/sparkfun-tas501-200kg-stype.jpg';
 import threeCellLayoutImg from './assets/three-cell-layout.png';
 import upennForceBalanceImg from './assets/upenn-force-balance-reference.png';
 import buildGuide from './buildGuide.json';
+import sourcesData from './sources.json';
 import './styles.css';
 
 const slides = [
@@ -48,6 +49,7 @@ const slides = [
   { id: 'build-guide', title: 'Build It Yourself, Step by Step' },
   { id: 'mounting', title: 'How It Mounts and Stands in the Tunnel' },
   { id: 'plan', title: 'Build Plan, Time, and Cost' },
+  { id: 'sources', title: 'Sources & References' },
 ];
 
 const SLIDE_WIDTH = 1094;
@@ -158,11 +160,15 @@ const buildSteps = [
 ];
 
 const bomRows = [
-  ['Sensors', '$122.85', '2x TAL220 + 1x TAS501'],
-  ['Amplifiers', '$14.85', '3x HX711 boards'],
-  ['Frame + plate', '$250-$900', 'Extrusion, machined plate, fasteners'],
-  ['Calibration', '$50-$200', 'Known masses, pulley, level, inclinometer'],
-  ['Expected total', '$450-$1,250+', 'Range depends mostly on frame and DAQ quality'],
+  ['2x TAL220 (lift)', '$16-24', '10 kg bars, ~$10 ea'],
+  ['Drag cell 5-10 kg', '$10-15', '200 kg = overkill'],
+  ['3x HX711 amps', '$18-30', 'one per cell'],
+  ['Arduino Uno', '$10-25', 'reads 3 channels'],
+  ['Frame + plate', '$250-$900', 'buy; varies most'],
+  ['Bolts + rod-ends', '$25-$45', 'M4/M5 + heim joints'],
+  ['Sting + AoA plate', '$30-$60', 'rod + angle plate'],
+  ['Pitot + airspeed', '$15-$40', 'for CL / CD'],
+  ['Estimated total', '~$375-$1,140', 'frame drives it'],
 ];
 
 // Assembly order, built bottom-up so the load path is obvious.
@@ -303,6 +309,7 @@ function SlideBody({ slide }) {
   if (slide.id === 'wiring') return <WiringSlide />;
   if (slide.id === 'pinmap') return <PinMapSlide />;
   if (slide.id === 'calibration') return <CalibrationSlide />;
+  if (slide.id === 'sources') return <SourcesSlide />;
   return <PlanSlide />;
 }
 
@@ -1615,6 +1622,52 @@ function PlanSlide() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+// Final references page: the verified verdict + the real, categorised sources
+// every fact in the deck traces back to (from the fact-check workflow).
+function SourcesSlide() {
+  const categories = [
+    'Balance & aerodynamics',
+    'Load cells & mounting',
+    'Electronics & HX711',
+    'Calibration',
+    'Where to buy',
+  ];
+  return (
+    <SlideShell title="Sources & References" kicker="Where this all comes from">
+      <div className="sources-layout">
+        <aside className="sources-verdict">
+          <div className="sv-badge">
+            <ShieldCheck size={15} /> Fact-checked vs. the sources
+          </div>
+          <p>{sourcesData.summaryShort || sourcesData.summary}</p>
+          <ul className="sv-corrections">
+            {sourcesData.corrections.map((c, i) => (
+              <li key={i}>{c}</li>
+            ))}
+          </ul>
+        </aside>
+        <div className="sources-grid">
+          {categories.map((cat) => {
+            const items = sourcesData.sources.filter((s) => s.category === cat);
+            if (!items.length) return null;
+            return (
+              <section key={cat} className="src-group">
+                <h3>{cat}</h3>
+                {items.map((s) => (
+                  <a key={s.url} className="src-item" href={s.url} target="_blank" rel="noreferrer">
+                    <strong>{s.title}</strong>
+                    <span>{s.supports}</span>
+                  </a>
+                ))}
+              </section>
+            );
+          })}
         </div>
       </div>
     </SlideShell>

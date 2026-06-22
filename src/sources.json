@@ -1,0 +1,109 @@
+{
+  "dragCellAnswer": "Drag is a horizontal, inline (axial) force, so the correct sensor is an S-TYPE (S-beam) load cell, not a bar/single-point cell. Mount it inline along the airflow on rod-end (heim) bearings so it sees pure axial load. For a ~10 N drag, the deck's 200 kg S-cell is grossly oversized (~0.5% of range = poor resolution); a ~2 kg S-beam is optimal. Buy the Phidgets 2 kg S-Type (FRC4160_0, ~$40) or 10 kg (FRC4161_0, $40) at phidgets.com; FUTEK LSB200 / Omega LC101 are premium lab-grade alternatives.",
+  "summary": "The deck's wind-tunnel load-cell content is largely accurate and well-sourced: cell-type selection (bar cells as cantilevers for lift/pitch, S-beam inline for drag), HX711 wiring, RATE-pin behavior, the horizontal-compliance decoupling principle, external-balance load path, and full-rig calibration with a cross-axis matrix all check out. Two items needed correction: the 200 kg drag-cell capacity is far too large for a few-newton drag (use ~2 kg), and the pitching-moment formula conflated two reference points. Wire-color coding should also be flagged as a common convention, not a guaranteed standard.",
+  "corrections": [
+    "200 kg drag cell is ~20-40x oversized for a few-N drag - use a ~2 kg (5-10 kg OK) S-beam.",
+    "Pitch: name the reference point - about one cell = F_other x d; about the midpoint = (front-rear) x d/2.",
+    "Wire colors red/black/green/white are a common convention, not universal - verify per datasheet/meter.",
+    "Load path is right, but pair it with a sting tare run (subtract support drag measured with no model)."
+  ],
+  "sources": [
+    {
+      "title": "NASA Glenn — Drag Measurement / Wind-Tunnel Balance",
+      "url": "https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/drag-measurement/",
+      "supports": "Balance resolves lift/drag/moment; tare run subtraction; calibration",
+      "category": "Balance & aerodynamics"
+    },
+    {
+      "title": "NASA Glenn — External Balance",
+      "url": "https://www.grc.nasa.gov/www/k-12/airplane/tunbalext.html",
+      "supports": "External balance under floor, struts through floor, load path",
+      "category": "Balance & aerodynamics"
+    },
+    {
+      "title": "Post & Morris — Force Balance Design for Educational Wind Tunnels (ASEE)",
+      "url": "https://peer.asee.org/force-balance-design-for-educational-wind-tunnels.pdf",
+      "supports": "Two vertical + one horizontal cell layout; lift=sum, moment=difference",
+      "category": "Balance & aerodynamics"
+    },
+    {
+      "title": "ERAU JAAER — 3-Component Force Balance for Educational Wind Tunnels",
+      "url": "https://commons.erau.edu/cgi/viewcontent.cgi?article=1809&context=jaaer",
+      "supports": "Lift as vector sum; pitching moment from cell separation",
+      "category": "Balance & aerodynamics"
+    },
+    {
+      "title": "Barlow, Rae & Pope — Low-Speed Wind Tunnel Testing (3rd ed.)",
+      "url": "https://books.google.com/books/about/Low_Speed_Wind_Tunnel_Testing.html?id=nUHWDwAAQBAJ",
+      "supports": "Tare and interference corrections in serious testing",
+      "category": "Balance & aerodynamics"
+    },
+    {
+      "title": "UPM — Flexure-linkage wind tunnel balance decoupling",
+      "url": "https://oa.upm.es/15266/1/INVE_MEM_2011_121805.pdf",
+      "supports": "Flexures/linear elements decouple axes so drag reaches one cell",
+      "category": "Load cells & mounting"
+    },
+    {
+      "title": "SparkFun — Load Cell Amplifier HX711 Hookup Guide",
+      "url": "https://learn.sparkfun.com/tutorials/load-cell-amplifier-hx711-breakout-hookup-guide/all",
+      "supports": "Cantilever mounting, wire colors caveat, HX711 wiring, RATE jumper",
+      "category": "Electronics & HX711"
+    },
+    {
+      "title": "Avia Semiconductor — HX711 Datasheet",
+      "url": "https://cdn.sparkfun.com/datasheets/Sensors/ForceFlex/hx711_english.pdf",
+      "supports": "24-bit ADC, Channel A bridge input, RATE pin, noise vs SPS",
+      "category": "Electronics & HX711"
+    },
+    {
+      "title": "Adafruit — HX711 24-bit ADC Overview",
+      "url": "https://learn.adafruit.com/adafruit-hx711-24-bit-adc/overview",
+      "supports": "Wheatstone bridge operation; 2-wire protocol; wire colors",
+      "category": "Electronics & HX711"
+    },
+    {
+      "title": "bogde/HX711 Arduino Library README",
+      "url": "https://github.com/bogde/HX711/blob/master/README.md",
+      "supports": "tare/set_scale/get_units calibration procedure and API",
+      "category": "Calibration"
+    },
+    {
+      "title": "FUTEK — S-Beam Tension & Compression Load Cells",
+      "url": "https://www.futek.com/store/load-cells/s-beam-load-cells",
+      "supports": "S-beam inline use; avoid side load; rod-end accessories",
+      "category": "Load cells & mounting"
+    },
+    {
+      "title": "Applied Measurements — How to Install an S-Beam Load Cell",
+      "url": "https://appmeas.co.uk/resources/install-s-beam-load-cell/",
+      "supports": "S-beams need rod-ends/clevises; central axial alignment",
+      "category": "Load cells & mounting"
+    },
+    {
+      "title": "Massload — Understanding Different Types of Load Cells",
+      "url": "https://www.massload.com/understanding-different-types-of-load-cells/",
+      "supports": "Single-point bending vs S-shape tension cell selection",
+      "category": "Load cells & mounting"
+    },
+    {
+      "title": "Industrial Monitor Direct — Load Cell Scale Range Best Practices",
+      "url": "https://industrialmonitordirect.com/blogs/knowledgebase/load-cell-acceptable-scale-range-for-load-testing",
+      "supports": "Operate at 20-80% capacity; oversized cell = poor resolution",
+      "category": "Load cells & mounting"
+    },
+    {
+      "title": "Phidgets — S-Type 2 kg / 10 kg Load Cells (FRC4160/FRC4161)",
+      "url": "https://www.phidgets.com/?prodid=1305",
+      "supports": "Best-value small inline S-type cells, ~$40, M6 thread",
+      "category": "Where to buy"
+    },
+    {
+      "title": "MDPI — Wind Tunnel Balance Calibration & Cross-Axis Matrix",
+      "url": "https://www.mdpi.com/2076-3417/14/23/11236",
+      "supports": "Full-rig calibration with interaction/decoupling matrix",
+      "category": "Calibration"
+    }
+  ],
+  "summaryShort": "Fact-checked against the sources below: the deck's wind-tunnel load-cell content is largely accurate and well-sourced (cell-type choice, HX711 wiring, RATE pin, compliance decoupling, external-balance load path, full-rig + cross-axis calibration all check out). Four items were flagged:"
+}
